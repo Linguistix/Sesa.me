@@ -10,6 +10,8 @@ const config = [
       "node_modules/**",
       "test-results/**",
       "playwright-report/**",
+      // Plain Node scripts standing in for external services during tests.
+      "test-harness/**",
     ],
   },
   ...coreWebVitals,

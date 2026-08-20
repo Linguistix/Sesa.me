@@ -17,16 +17,20 @@ export function LinkForm({
   link,
   onDone,
   storageEnabled = false,
+  syncProviders = [],
 }: {
   mode: "create" | "edit";
   link?: EditorLink;
   onDone?: () => void;
   storageEnabled?: boolean;
+  /** Sync sources the user's connected accounts make available. */
+  syncProviders?: Array<{ value: string; label: string }>;
 }) {
   const action = mode === "create" ? createLinkAction : updateLinkAction;
   const [state, formAction] = useActionState(action, EMPTY);
   const [type, setType] = useState<EditorLink["type"]>(link?.type ?? "LINK");
   const [images, setImages] = useState<string[]>(link?.images ?? []);
+  const [syncProvider, setSyncProvider] = useState<string>(link?.syncProvider ?? "");
   const [changePassword, setChangePassword] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const succeeded = state === EMPTY ? false : !state.error && !state.fieldErrors;
@@ -38,7 +42,10 @@ export function LinkForm({
     // `state` identity changes on every action result, which is the signal here.
   }, [state, succeeded, mode, onDone]);
 
-  const needsUrl = URL_BLOCK_TYPES.includes(type);
+  const synced = syncProvider !== "";
+  // A synced block's destination comes from the provider, so the URL field is
+  // hidden rather than shown empty and un-editable.
+  const needsUrl = URL_BLOCK_TYPES.includes(type) && !synced;
   const needsImages = IMAGE_BLOCK_TYPES.includes(type);
   // An image block may carry a destination, but does not require one.
   const optionalUrl = type === "IMAGE";
@@ -80,6 +87,33 @@ export function LinkForm({
           />
         </Field>
       </div>
+
+      {syncProviders.length > 0 && URL_BLOCK_TYPES.includes(type) ? (
+        <Field label="Source automatique" hint="facultatif">
+          <select
+            name="syncProvider"
+            value={syncProvider}
+            onChange={(e) => setSyncProvider(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Aucune — je saisis l&apos;URL moi-même</option>
+            {syncProviders.map((provider) => (
+              <option key={provider.value} value={provider.value}>
+                {provider.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : (
+        <input type="hidden" name="syncProvider" value="" />
+      )}
+
+      {synced ? (
+        <p className="text-xs text-neutral-500">
+          Le titre et le lien de ce bloc sont récupérés automatiquement depuis votre compte
+          connecté. {link?.syncError ? <span className="text-amber-300">⚠ {link.syncError}</span> : null}
+        </p>
+      ) : null}
 
       {needsUrl || optionalUrl ? (
         <Field

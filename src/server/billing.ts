@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { getStripe, PRO_PRICE_ID } from "@/lib/stripe";
+import { invalidatePublicPage } from "@/server/pages";
 import { appUrl } from "@/lib/urls";
 import type { SubscriptionStatus } from "@/generated/prisma/enums";
 
@@ -108,6 +109,11 @@ export async function applySubscriptionState(params: {
 }) {
   const plan = entitlesToPro(params.status) ? "PRO" : "FREE";
 
+  const pages = await prisma.page.findMany({
+    where: { userId: params.userId },
+    select: { slug: true },
+  });
+
   await prisma.$transaction([
     prisma.subscription.upsert({
       where: { userId: params.userId },
@@ -131,6 +137,13 @@ export async function applySubscriptionState(params: {
     // same transaction as the subscription that justifies it.
     prisma.user.update({ where: { id: params.userId }, data: { plan } }),
   ]);
+
+  // The plan drives the public page's branding footer and verified badge, so
+  // an upgrade that only lands in the database leaves the old page cached —
+  // a user who has just paid still sees "Propulsé par Sesame".
+  for (const page of pages) {
+    await invalidatePublicPage(page.slug);
+  }
 }
 
 export async function getSubscription(userId: string) {

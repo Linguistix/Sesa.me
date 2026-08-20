@@ -64,6 +64,12 @@ test("an unrecognised URL in an embed block degrades to a plain link", async ({ 
   await addBlock.getByLabel("URL", { exact: true }).fill("https://example.com/whatever");
   await addBlock.getByRole("button", { name: "Ajouter le bloc" }).click();
 
+  // Wait for the block to actually exist before leaving: navigating straight
+  // after the click races the server action, which is only visible under load.
+  await expect(
+    page.getByRole("list", { name: "Blocs de la page" }).getByText("Mon site"),
+  ).toBeVisible();
+
   await page.goto(`/int-${suffix}`);
   await expect(page.locator("iframe")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Mon site" })).toBeVisible();
@@ -124,6 +130,11 @@ test("short links deep-link inside an in-app browser and redirect elsewhere", as
     .getByLabel("URL", { exact: true })
     .fill("https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT");
   await addBlock.getByRole("button", { name: "Ajouter le bloc" }).click();
+
+  // The short-link manager only offers blocks that exist, so wait for it.
+  await expect(
+    page.getByRole("list", { name: "Blocs de la page" }).getByText("Mon single"),
+  ).toBeVisible();
 
   await page.goto("/dashboard/analytics");
   await page.getByRole("button", { name: "Créer", exact: true }).click();

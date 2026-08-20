@@ -36,7 +36,12 @@ model User {
   @@map("users")
 }
 
-/// OAuth provider account linked to a user (Auth.js).
+/// An OAuth grant held on a user's behalf.
+///
+/// Doubles as the Auth.js account table and as the store for *connections* —
+/// grants taken purely to read data (a creator's Spotify releases), not to
+/// sign in. The two are the same shape, and keeping one table means a user who
+/// signed in with Spotify does not then have to connect Spotify separately.
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -50,6 +55,12 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
+
+  /// Display name of the connected account, so the dashboard can say *which*
+  /// Spotify account is linked without calling the provider on every render.
+  accountLabel String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -106,6 +117,12 @@ model Page {
   @@map("pages")
 }
 
+/// A provider a block can pull its content from automatically.
+enum SyncProvider {
+  SPOTIFY_LATEST_RELEASE
+  YOUTUBE_LATEST_VIDEO
+}
+
 enum LinkType {
   LINK
   HEADING
@@ -138,6 +155,15 @@ model Link {
   isActive     Boolean  @default(true)
   /// bcrypt hash — when set, the destination is gated behind a password.
   passwordHash String?
+
+  /// When set, `url` and `title` are refreshed from the creator's connected
+  /// account instead of being typed by hand. The resolved values are written
+  /// back to the same columns, so rendering needs no special case.
+  syncProvider SyncProvider?
+  syncedAt     DateTime?
+  /// Last sync failure, surfaced in the editor so a revoked grant is visible
+  /// rather than silently freezing the block on stale content.
+  syncError    String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

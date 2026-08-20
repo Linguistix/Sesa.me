@@ -11,6 +11,8 @@ qui rassemble ses liens, sa musique, sa boutique et ses formulaires.
 | Backend | Server Actions + Route Handlers |
 | Base de données | PostgreSQL 16 + Prisma 7 (driver adapter `pg`) |
 | Auth | Auth.js v5, sessions JWT |
+| Cache / limites | Redis (optionnel, avec repli mémoire et disjoncteur) |
+| Stockage | S3-compatible (R2, B2, MinIO) en téléversement direct |
 | Tests | Vitest (unitaires) + Playwright (bout en bout) |
 
 ## Démarrage
@@ -47,18 +49,27 @@ fonctionnalités concernées se signalent comme non configurées.
 | `npm run build` | `prisma generate` puis build de production |
 | `npm test` | Tests unitaires (Vitest) |
 | `npm run test:e2e` | Tests bout en bout (Playwright, serveur déjà démarré) |
+| `npm run test:redis` | Tests d'intégration Redis (serveur Redis local requis) |
 | `npm run lint` | ESLint (flat config) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:migrate` | Crée et applique une migration |
 | `npm run db:seed` | Insère le compte de démonstration |
 
 Les tests Playwright supposent une application déjà lancée sur `BASE_URL`
-(`http://localhost:3000` par défaut) :
+(`http://localhost:3000` par défaut). Les suites qui touchent au stockage ou à
+l'OAuth s'appuient sur deux serveurs de test locaux — voir
+[`test-harness/`](test-harness/README.md) :
 
 ```bash
+redis-server --daemonize yes
+node test-harness/fake-s3.mjs &
+node test-harness/mock-oauth.mjs &
 npm run build && npm start &
 npm run test:e2e
 ```
+
+Sans ces services, les suites concernées vérifient la dégradation prévue
+plutôt que d'échouer.
 
 ## Architecture
 
@@ -74,6 +85,10 @@ src/
   lib/
     theme/             Le contrat de thème : schéma, contraste, presets, rendu
     ai/                Moteur de design et résumés — voir docs/ai-design.md
+    cache.ts           Cache partagé (Redis ou mémoire) devant la lecture DB
+    oauth/             Flux OAuth créateur (PKCE, state) — voir docs/connections.md
+    storage.ts         Téléversement direct S3/R2 — voir docs/storage.md
+    redis.ts           Client partagé + disjoncteur
     analytics/         Identification visiteur sans donnée personnelle
     embeds/            Détection des lecteurs (liste blanche de fournisseurs)
     i18n/              Négociation de langue et catalogues FR/EN/ES
@@ -109,6 +124,8 @@ l'IA — `presets.test.ts` échoue si l'un d'eux descend sous WCAG AA.
 | [`docs/ai-design.md`](docs/ai-design.md) | Moteur de design par IA, chaîne de garanties, quotas |
 | [`docs/analytics.md`](docs/analytics.md) | Pipeline d'événements, vie privée, passage à l'échelle |
 | [`docs/integrations.md`](docs/integrations.md) | Lecteurs, deep linking, formulaires, i18n, domaines |
+| [`docs/connections.md`](docs/connections.md) | OAuth créateur, PKCE, rafraîchissement, blocs synchronisés |
+| [`docs/storage.md`](docs/storage.md) | Téléversement direct, signature, CORS |
 
 ## Sécurité
 
@@ -129,6 +146,12 @@ l'IA — `presets.test.ts` échoue si l'un d'eux descend sous WCAG AA.
   écartés.
 - Un domaine personnalisé ne sert la page qu'une fois la propriété prouvée par
   un enregistrement TXT.
+- Les téléversements passent par une URL présignée dont la **signature couvre
+  le type et la taille** — sans quoi une URL émise pour un PNG accepterait du
+  `text/html`. SVG est refusé.
+- Les autorisations OAuth créateur sont des accès **en lecture seule**, séparés
+  de l'authentification : une autorisation de données ne peut pas devenir une
+  connexion.
 
 ## Accessibilité
 
@@ -136,18 +159,38 @@ Contraste WCAG AA garanti par construction (et corrigé automatiquement),
 navigation clavier complète — y compris le réordonnancement des blocs via
 dnd-kit —, attributs `alt` sur les images, et respect de `prefers-reduced-motion`.
 
-## Ce qui reste ouvert
+## Déploiement
 
-- **OAuth créateur** (§1.5) — connecter un compte Spotify ou YouTube pour
-  afficher automatiquement la dernière sortie. L'infrastructure est en place
-  (modèle `Account`, Auth.js configuré pour accueillir des providers), mais
-  cela demande d'enregistrer une application chez chaque fournisseur.
-- **Stockage de fichiers** (R2/S3) — les avatars et images de galerie sont
-  aujourd'hui des URL externes. Le passage à un téléversement direct est un
-  travail d'infrastructure, pas de produit.
-- **Redis** — le limiteur de débit est en mémoire, correct pour un processus
-  unique. `createRedisRateLimiter()` existe déjà derrière la même interface
-  pour un déploiement multi-instances.
+Cinq intégrations sont optionnelles. Sans elles l'application démarre et
+fonctionne ; les fonctionnalités concernées se signalent comme non configurées.
+
+| Intégration | Variables | Sans elle |
+|---|---|---|
+| **Stripe** | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` | la page Abonnement indique que la facturation n'est pas configurée |
+| **IA** | `ANTHROPIC_API_KEY` | pas de génération de thème ni de résumé hebdomadaire ; l'éditeur manuel et les thèmes préconçus fonctionnent |
+| **Stockage** | `S3_*` — voir [`docs/storage.md`](docs/storage.md) | les champs d'image acceptent une URL au lieu d'un téléversement |
+| **Redis** | `REDIS_URL` | limites de débit et cache par processus au lieu d'être partagés |
+| **OAuth créateur** | `SPOTIFY_*`, `GOOGLE_*` — voir [`docs/connections.md`](docs/connections.md) | pas de bloc synchronisé automatiquement |
+
+Deux points de configuration ne sont pas dans le code et se règlent chez le
+fournisseur :
+
+- **CORS sur le bucket** — obligatoire, sinon chaque téléversement direct
+  échoue au préflight, avant même d'atteindre le stockage. Politique exacte
+  dans [`docs/storage.md`](docs/storage.md).
+- **URI de redirection OAuth** — à déclarer chez Spotify et Google :
+  `<NEXT_PUBLIC_APP_URL>/api/connections/<provider>/callback`.
+
+### Redis en production
+
+`REDIS_URL` est optionnel mais recommandé dès qu'il y a plus d'un processus :
+les compteurs de limitation en mémoire sont par instance, donc la limite
+effective se multiplie par le nombre d'instances.
+
+Un disjoncteur protège le chemin critique : après trois échecs consécutifs,
+Redis est ignoré pendant dix secondes plutôt que de faire payer un timeout à
+chaque requête. Mesuré, une panne Redis sans disjoncteur faisait passer une
+page de 15 ms à 2,8 s.
 
 ## Feuille de route
 
@@ -159,3 +202,5 @@ dnd-kit —, attributs `alt` sur les images, et respect de `prefers-reduced-moti
 - [x] **Phase 4 — Intégrations** : Spotify/Apple Music/SoundCloud/YouTube/Twitch,
       deep links natifs, formulaires, galerie photo, multi-langue FR/EN/ES,
       domaine personnalisé
+- [x] **Infrastructure** : OAuth créateur avec blocs auto-synchronisés,
+      téléversement direct S3/R2, Redis partagé (limites + cache)

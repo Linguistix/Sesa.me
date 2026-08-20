@@ -20,6 +20,7 @@ import {
 } from "@/server/links";
 import { themeSchema } from "@/lib/theme/schema";
 import { createForm } from "@/server/forms";
+import { syncPage } from "@/server/sync";
 import { DEFAULT_FORM_FIELDS } from "@/lib/forms";
 import { findPreset } from "@/lib/theme/presets";
 import type { ActionState } from "./auth";
@@ -97,6 +98,7 @@ export async function createLinkAction(
     emoji: formData.get("emoji") || "",
     body: formData.get("body") || "",
     images: parseImages(formData.get("images")),
+    syncProvider: (formData.get("syncProvider") as string) || null,
     isActive: true,
     password: (formData.get("password") as string) || undefined,
   });
@@ -117,6 +119,10 @@ export async function createLinkAction(
       fields: DEFAULT_FORM_FIELDS,
     });
   }
+
+  // A synced block is created empty; resolving it immediately means the user
+  // sees real content rather than a placeholder that fills in later.
+  if (parsed.data.syncProvider) await syncPage(page.id, userId);
 
   await revalidatePageRoutes(page.slug);
   return {};
@@ -140,6 +146,7 @@ export async function updateLinkAction(
     emoji: formData.get("emoji") || "",
     body: formData.get("body") || "",
     images: parseImages(formData.get("images")),
+    syncProvider: (formData.get("syncProvider") as string) || null,
     isActive: formData.get("isActive") !== "false",
     // A form that does not send the field at all leaves the gate untouched.
     password: rawPassword === null ? undefined : String(rawPassword),
@@ -149,6 +156,8 @@ export async function updateLinkAction(
 
   const ok = await updateLink(linkId, userId, parsed.data);
   if (!ok) return { error: "Lien introuvable." };
+
+  if (parsed.data.syncProvider) await syncPage(page.id, userId);
 
   await revalidatePageRoutes(page.slug);
   return {};
@@ -181,6 +190,7 @@ export async function toggleLinkAction(linkId: string, isActive: boolean): Promi
     emoji: link.emoji ?? "",
     body: link.body ?? "",
     images: link.images,
+    syncProvider: link.syncProvider,
     isActive,
     password: undefined,
   });

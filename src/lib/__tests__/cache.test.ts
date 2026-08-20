@@ -69,3 +69,24 @@ describe("publicPageKey", () => {
     expect(publicPageKey("camille")).toBe("page:camille");
   });
 });
+
+describe("invalidation is part of deletion, not an afterthought", () => {
+  it("a deleted entry is gone immediately, not merely expiring", async () => {
+    // The bug this guards: account erasure emptied the database but left the
+    // cached page serving 200 for the rest of its TTL. "Eventually gone" is
+    // not erasure.
+    const compute = vi.fn().mockResolvedValue({ page: "live" });
+
+    await cached("page:doomed", 3600, compute);
+    expect(await cacheGet("page:doomed")).toEqual({ page: "live" });
+
+    await cacheDelete("page:doomed");
+
+    // The next read must miss even though the TTL has hours left.
+    expect(await cacheGet("page:doomed")).toBeNull();
+  });
+
+  it("deleting a key that was never cached is not an error", async () => {
+    await expect(cacheDelete("never-existed")).resolves.toBeUndefined();
+  });
+});

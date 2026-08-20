@@ -41,6 +41,7 @@ export async function createLink(pageId: string, userId: string, input: LinkInpu
       body: input.body || null,
       images: input.images,
       isActive: input.isActive,
+      syncProvider: input.syncProvider ?? null,
       position: (last?.position ?? -1) + 1,
       passwordHash: input.password ? await bcrypt.hash(input.password, 10) : null,
     },
@@ -72,6 +73,7 @@ export async function updateLink(linkId: string, userId: string, input: LinkInpu
       body: input.body || null,
       images: input.images,
       isActive: input.isActive,
+      syncProvider: input.syncProvider ?? null,
       ...(passwordHash !== undefined ? { passwordHash } : {}),
     },
   });

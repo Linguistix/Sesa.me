@@ -68,9 +68,11 @@ function announcementsFor(links: EditorLink[]): Announcements {
 export function LinkList({
   links,
   storageEnabled = false,
+  syncProviders = [],
 }: {
   links: EditorLink[];
   storageEnabled?: boolean;
+  syncProviders?: Array<{ value: string; label: string }>;
 }) {
   const [optimisticLinks, setOptimisticOrder] = useOptimistic(
     links,
@@ -149,6 +151,7 @@ export function LinkList({
                 key={link.id}
                 link={link}
                 storageEnabled={storageEnabled}
+                syncProviders={syncProviders}
                 isEditing={editingId === link.id}
                 onEdit={() => setEditingId(editingId === link.id ? null : link.id)}
                 onDone={() => setEditingId(null)}
@@ -164,12 +167,14 @@ export function LinkList({
 function SortableRow({
   link,
   storageEnabled,
+  syncProviders,
   isEditing,
   onEdit,
   onDone,
 }: {
   link: EditorLink;
   storageEnabled: boolean;
+  syncProviders: Array<{ value: string; label: string }>;
   isEditing: boolean;
   onEdit: () => void;
   onDone: () => void;
@@ -212,8 +217,12 @@ function SortableRow({
           </p>
           <p className="truncate text-xs text-neutral-500">
             {BLOCK_LABELS[link.type]}
+            {link.syncProvider ? " · synchronisé" : ""}
             {link.url ? ` · ${link.url}` : ""}
           </p>
+          {link.syncError ? (
+            <p className="truncate text-xs text-amber-300">⚠ {link.syncError}</p>
+          ) : null}
         </div>
 
         <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
@@ -256,7 +265,13 @@ function SortableRow({
 
       {isEditing ? (
         <div className="border-t border-white/10 p-3">
-          <LinkForm mode="edit" link={link} onDone={onDone} storageEnabled={storageEnabled} />
+          <LinkForm
+            mode="edit"
+            link={link}
+            onDone={onDone}
+            storageEnabled={storageEnabled}
+            syncProviders={syncProviders}
+          />
         </div>
       ) : null}
     </li>

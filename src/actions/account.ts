@@ -1,8 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { auth, signOut } from "@/lib/auth";
 import { deleteUserAccount } from "@/server/gdpr";
+import { invalidatePublicPage } from "@/server/pages";
 import type { ActionState } from "./auth";
 
 /**
@@ -26,8 +28,15 @@ export async function deleteAccountAction(
     return { fieldErrors: { confirmation: "La confirmation ne correspond pas." } };
   }
 
-  const deleted = await deleteUserAccount(userId);
-  if (!deleted) return { error: "Suppression impossible." };
+  const freedSlugs = await deleteUserAccount(userId);
+  if (freedSlugs === null) return { error: "Suppression impossible." };
+
+  // Erasure has to reach the caches too, or the page stays served from a
+  // stale copy after the rows are gone.
+  for (const slug of freedSlugs) {
+    await invalidatePublicPage(slug);
+    revalidatePath(`/${slug}`);
+  }
 
   await signOut({ redirect: false });
   redirect("/?deleted=1");

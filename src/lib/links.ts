@@ -30,6 +30,8 @@ export const linkInputSchema = z
     isActive: z.boolean().default(true),
     /** Image URLs for gallery and image blocks. */
     images: z.array(z.string().trim().url().max(2048)).max(24).default([]),
+    /** When set, the block's URL and title come from a connected account. */
+    syncProvider: z.enum(["SPOTIFY_LATEST_RELEASE", "YOUTUBE_LATEST_VIDEO"]).nullish(),
     /** Empty string clears the gate; undefined leaves it untouched. */
     password: z.string().max(72).optional(),
   })
@@ -54,6 +56,10 @@ export const linkInputSchema = z
         message: "L'URL doit commencer par http:// ou https://.",
       });
     }
+
+    // A synced block is filled in by the sync engine on save, so requiring a
+    // URL up front would make it impossible to create one.
+    if (val.syncProvider) return;
 
     const needsUrl = URL_BLOCK_TYPES.includes(val.type as BlockType);
     if (!needsUrl) return;

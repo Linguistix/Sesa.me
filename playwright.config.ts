@@ -1,4 +1,8 @@
+import { config as loadEnv } from "dotenv";
 import { defineConfig, devices } from "@playwright/test";
+
+// The suite reads the database directly for setup that has no UI.
+loadEnv();
 
 /**
  * End-to-end coverage of the flows a user actually performs.

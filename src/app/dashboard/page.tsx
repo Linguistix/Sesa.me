@@ -8,6 +8,7 @@ import { PhonePreview } from "@/components/dashboard/PhonePreview";
 import { PageRenderer } from "@/components/public/PageRenderer";
 import { appUrl } from "@/lib/urls";
 import { isStorageConfigured } from "@/lib/storage";
+import { availableSyncProviders } from "@/server/sync";
 
 export const metadata = { title: "Éditeur" };
 
@@ -15,6 +16,14 @@ export default async function EditorPage() {
   const session = await auth();
   const page = await getEditablePage(session!.user.id);
   if (!page) redirect("/login");
+
+  const syncProviders = (await availableSyncProviders(session!.user.id)).map((value) => ({
+    value,
+    label:
+      value === "SPOTIFY_LATEST_RELEASE"
+        ? "Spotify — dernière sortie"
+        : "YouTube — dernière vidéo",
+  }));
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -44,6 +53,7 @@ export default async function EditorPage() {
 
           <LinkList
             storageEnabled={isStorageConfigured()}
+            syncProviders={syncProviders}
             links={page.links.map((l) => ({
               id: l.id,
               type: l.type,
@@ -53,13 +63,19 @@ export default async function EditorPage() {
               body: l.body,
               images: l.images,
               isActive: l.isActive,
+              syncProvider: l.syncProvider,
+              syncError: l.syncError,
               hasPassword: l.passwordHash !== null,
             }))}
           />
 
           <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-4">
             <h3 className="mb-3 text-sm font-medium text-neutral-200">Ajouter un bloc</h3>
-            <LinkForm mode="create" storageEnabled={isStorageConfigured()} />
+            <LinkForm
+              mode="create"
+              storageEnabled={isStorageConfigured()}
+              syncProviders={syncProviders}
+            />
           </div>
         </section>
       </div>

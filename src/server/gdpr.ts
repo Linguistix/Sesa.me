@@ -81,12 +81,26 @@ export async function exportUserData(userId: string) {
  * GDPR erasure.
  *
  * Every related table cascades from `User` in the schema, so deleting the user
- * row removes pages, links, short links, analytics events, sessions and the
- * subscription mirror in one statement. The Stripe customer is deliberately
+ * row removes pages, links, short links, analytics events, sessions, OAuth
+ * grants and the subscription mirror in one statement.
+ *
+ * Returns the slugs that were freed, so the caller can invalidate their cached
+ * copies — the database being empty is not the same as the page being gone. The Stripe customer is deliberately
  * *not* deleted here — invoices are records the business is required to keep —
  * so the caller should cancel the subscription first.
  */
-export async function deleteUserAccount(userId: string): Promise<boolean> {
+export async function deleteUserAccount(userId: string): Promise<string[] | null> {
+  // The slugs are read before the delete so the caller can drop them from the
+  // page cache. Without that the deleted pages stay publicly reachable until
+  // the cache entry expires — which for an erasure request is not an
+  // acceptable "eventually".
+  const pages = await prisma.page.findMany({
+    where: { userId },
+    select: { slug: true },
+  });
+
   const result = await prisma.user.deleteMany({ where: { id: userId } });
-  return result.count === 1;
+  if (result.count !== 1) return null;
+
+  return pages.map((page) => page.slug);
 }
