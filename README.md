@@ -32,6 +32,12 @@ La page de démo est alors sur <http://localhost:3000/camille>.
 | `DATABASE_URL` | Chaîne de connexion PostgreSQL |
 | `AUTH_SECRET` | Secret de signature des sessions (`openssl rand -base64 32`) |
 | `NEXT_PUBLIC_APP_URL` | URL publique — sert aux QR codes et aux métadonnées |
+| `ANALYTICS_SALT` | Sel du hash visiteur (analytics sans donnée personnelle) |
+| `ANTHROPIC_API_KEY` | *Optionnel* — active la génération de thème et les résumés |
+| `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` | *Optionnel* — active la facturation |
+
+Sans les variables optionnelles, l'application démarre et fonctionne : les
+fonctionnalités concernées se signalent comme non configurées.
 
 ## Scripts
 
@@ -89,6 +95,9 @@ prévue en phase 3 :
 Les thèmes préconçus passent le même audit d'accessibilité que la sortie de
 l'IA — `presets.test.ts` échoue si l'un d'eux descend sous WCAG AA.
 
+Le moteur de génération par IA est détaillé dans [`docs/ai-design.md`](docs/ai-design.md),
+et le pipeline analytics dans [`docs/analytics.md`](docs/analytics.md).
+
 ## Sécurité
 
 - Les liens protégés par mot de passe ne transmettent **jamais** leur URL au
@@ -111,7 +120,8 @@ dnd-kit —, attributs `alt` sur les images, et respect de `prefers-reduced-moti
 
 - [x] **Phase 1 — MVP** : page publique, CRUD des blocs, glisser-déposer,
       thèmes préconçus, QR code, liens protégés
-- [ ] **Phase 2 — Monétisation** : analytics, raccourcisseur de liens, Pro, Stripe
-- [ ] **Phase 3 — IA** : génération de thème, résumés analytics
+- [x] **Phase 2 — Monétisation** : analytics, raccourcisseur de liens, Pro, Stripe,
+      export RGPD
+- [x] **Phase 3 — IA** : génération de thème (§4), résumés analytics
 - [ ] **Phase 4 — Intégrations** : Spotify/YouTube/Twitch, deep links,
       formulaires, galerie, multi-langue, domaine personnalisé

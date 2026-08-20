@@ -30,7 +30,8 @@ model User {
   pages        Page[]
   accounts     Account[]
   sessions     Session[]
-  subscription Subscription?
+  subscription  Subscription?
+  aiGenerations AiGeneration[]
 
   @@map("users")
 }
@@ -221,4 +222,47 @@ model Subscription {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+// --- Phase 3: AI design engine --------------------------------------------
+
+enum AiGenerationKind {
+  THEME
+  ANALYTICS_SUMMARY
+}
+
+/// Log of every AI call.
+///
+/// Serves two jobs the design brief calls for. It is the quota ledger — free
+/// plans are capped per calendar month, and counting rows is the cheapest
+/// honest way to enforce that. It is also the corpus for tuning the system
+/// prompt: `prompt` and `output` are kept so a bad generation can be traced
+/// back to what the model was actually asked.
+model AiGeneration {
+  id     String           @id @default(cuid())
+  userId String
+  kind   AiGenerationKind @default(THEME)
+
+  /// The user's natural-language description, as typed.
+  prompt String @db.Text
+  /// Raw model output, before validation. Null when the call failed.
+  output String? @db.Text
+
+  /// Whether the output failed schema validation and fell back to a default.
+  usedFallback Boolean @default(false)
+  /// Contrast pairs that had to be corrected after generation.
+  fixesApplied Int     @default(0)
+
+  inputTokens  Int @default(0)
+  outputTokens Int @default(0)
+
+  /// Set when the call itself failed, so failures are visible in the log too.
+  error String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, createdAt])
+  @@map("ai_generations")
 }

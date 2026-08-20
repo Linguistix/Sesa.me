@@ -8,7 +8,9 @@ import {
   closestCenter,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
+  type ScreenReaderInstructions,
 } from "@dnd-kit/core";
 import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
@@ -22,6 +24,37 @@ import { CSS } from "@dnd-kit/utilities";
 import { deleteLinkAction, reorderLinksAction, toggleLinkAction } from "@/actions/page";
 import type { EditorLink } from "./types";
 import { LinkForm } from "./LinkForm";
+
+/**
+ * dnd-kit announces drag state to screen readers in English by default, which
+ * would be the only English in the interface. These are the French equivalents,
+ * and they name the block rather than its id so the announcement is useful.
+ */
+const screenReaderInstructions: ScreenReaderInstructions = {
+  draggable:
+    "Pour réordonner ce bloc, appuyez sur Espace ou Entrée. " +
+    "Utilisez ensuite les flèches haut et bas pour le déplacer, " +
+    "Espace ou Entrée pour valider, ou Échap pour annuler.",
+};
+
+function announcementsFor(links: EditorLink[]): Announcements {
+  const titleOf = (id: string | number) =>
+    links.find((l) => l.id === id)?.title ?? String(id);
+
+  return {
+    onDragStart: ({ active }) => `Bloc « ${titleOf(active.id)} » saisi.`,
+    onDragOver: ({ active, over }) =>
+      over
+        ? `Bloc « ${titleOf(active.id)} » déplacé au-dessus de « ${titleOf(over.id)} ».`
+        : `Bloc « ${titleOf(active.id)} » déplacé hors de la liste.`,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `Bloc « ${titleOf(active.id)} » déposé à la place de « ${titleOf(over.id)} ».`
+        : `Bloc « ${titleOf(active.id)} » reposé à sa place.`,
+    onDragCancel: ({ active }) =>
+      `Déplacement annulé. Le bloc « ${titleOf(active.id)} » reste à sa place.`,
+  };
+}
 
 const TYPE_LABEL: Record<EditorLink["type"], string> = {
   LINK: "Lien",
@@ -96,6 +129,10 @@ export function LinkList({ links }: { links: EditorLink[] }) {
       </p>
 
       <DndContext
+        accessibility={{
+          announcements: announcementsFor(optimisticLinks),
+          screenReaderInstructions,
+        }}
         sensors={sensors}
         collisionDetection={closestCenter}
         modifiers={[restrictToVerticalAxis, restrictToParentElement]}

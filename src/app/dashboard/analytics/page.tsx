@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getEditablePage } from "@/server/pages";
-import { fullReport, lastNDays } from "@/server/analytics";
+import { fullReport, lastNDays, weeklySummaryInput } from "@/server/analytics";
+import { weeklySummaryForUser } from "@/server/ai";
+import { isAiConfigured } from "@/lib/ai/client";
 import { listShortLinks } from "@/server/shortlinks";
 import { AnalyticsView } from "@/components/dashboard/AnalyticsView";
 import { ShortLinkManager } from "@/components/dashboard/ShortLinkManager";
@@ -37,9 +39,16 @@ export default async function AnalyticsPage({
     limitsFor(plan).analyticsRetentionDays,
   );
 
-  const [report, shortLinks] = await Promise.all([
+  const [report, shortLinks, summary] = await Promise.all([
     fullReport(page.id, lastNDays(days)),
     listShortLinks(page.id),
+    // The sentence is a garnish on figures that stand on their own, so a
+    // missing or failed summary never blocks the page.
+    isAiConfigured()
+      ? weeklySummaryInput(page.id).then((input) =>
+          weeklySummaryForUser(session!.user.id, input),
+        )
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -65,6 +74,12 @@ export default async function AnalyticsPage({
           ))}
         </nav>
       </div>
+
+      {summary ? (
+        <p className="mb-6 rounded-xl border border-indigo-500/25 bg-indigo-500/[0.06] px-4 py-3 text-sm text-neutral-200">
+          {summary}
+        </p>
+      ) : null}
 
       <AnalyticsView report={report} days={days} canExport={can(plan, "canExportCsv")} />
 

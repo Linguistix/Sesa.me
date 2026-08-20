@@ -81,12 +81,26 @@ test("reordering blocks with the keyboard persists and reorders the public page"
     await expect(blockList.getByText(title, { exact: true })).toBeVisible();
   }
 
+  // Let the list settle before grabbing focus: adding a block re-renders it,
+  // and focusing a row that is about to be replaced loses the keypress.
+  await expect(blockList.getByRole("listitem")).toHaveCount(2);
+
   // dnd-kit exposes keyboard reordering on the drag handle: space to pick up,
   // arrow to move, space to drop. This also proves the list is keyboard-usable.
   const handle = page.getByRole("button", { name: /Déplacer « Premier »/ });
   await handle.focus();
+
+  // Each step waits for the announcement it produces before the next keypress.
+  // Firing all three keys back to back races dnd-kit's layout measurement, and
+  // a dropped keypress would otherwise make this a no-op that still "passes".
+  const liveRegion = page.getByText(/Bloc « .* »/);
+
   await page.keyboard.press("Space");
+  await expect(liveRegion).toContainText("Premier");
+
   await page.keyboard.press("ArrowDown");
+  await expect(liveRegion).toContainText("Second");
+
   await page.keyboard.press("Space");
 
   // Wait for the save to actually land rather than guessing at a duration —
@@ -151,4 +165,28 @@ test("the dashboard is not reachable while signed out", async ({ page }) => {
   await page.context().clearCookies();
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login/);
+});
+
+test("the AI design panel reports itself unavailable when no key is configured", async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix();
+  await signUp(page, suffix);
+
+  await page.goto("/dashboard/appearance");
+
+  // This instance runs without ANTHROPIC_API_KEY; the panel must say so
+  // rather than offering a button that cannot work.
+  const panel = page.getByText("Non configuré sur cette instance", { exact: false });
+  const generator = page.getByRole("button", { name: "Générer" });
+
+  // Exactly one of the two states must be present.
+  const unavailable = await panel.count();
+  const available = await generator.count();
+  expect(unavailable + available).toBe(1);
+
+  if (unavailable) {
+    await expect(panel).toBeVisible();
+    await expect(generator).toHaveCount(0);
+  }
 });

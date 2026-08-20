@@ -8,6 +8,7 @@ import { auditContrast } from "@/lib/theme/sanitize";
 import { PageRenderer, type RenderablePage } from "@/components/public/PageRenderer";
 import { PhonePreview } from "./PhonePreview";
 import { Field, inputClass } from "./LinkForm";
+import { AiDesigner } from "./AiDesigner";
 
 /**
  * Theme editing with an instant local preview.
@@ -19,9 +20,11 @@ import { Field, inputClass } from "./LinkForm";
 export function ThemePicker({
   initialTheme,
   previewPage,
+  ai,
 }: {
   initialTheme: Theme;
   previewPage: Omit<RenderablePage, "theme">;
+  ai: { configured: boolean; remaining: number; isPro: boolean };
 }) {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [pending, startTransition] = useTransition();
@@ -44,6 +47,16 @@ export function ThemePicker({
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex flex-col gap-8">
+        <AiDesigner
+          configured={ai.configured}
+          initialRemaining={ai.remaining}
+          isPro={ai.isPro}
+          onPreview={(next) => {
+            setTheme(next);
+            setSaved(false);
+          }}
+        />
+
         <section aria-labelledby="presets-heading">
           <h2 id="presets-heading" className="mb-3 text-sm font-medium text-neutral-400">
             Thèmes préconçus

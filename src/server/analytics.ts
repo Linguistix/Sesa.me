@@ -217,3 +217,47 @@ export async function fullReport(pageId: string, range: Timeframe) {
 }
 
 export type FullReport = Awaited<ReturnType<typeof fullReport>>;
+
+/**
+ * The two comparable weeks the natural-language summary talks about.
+ *
+ * Both windows are exactly seven days so the percentage change means what a
+ * reader assumes it means; comparing a partial week against a full one would
+ * manufacture a decline every Monday.
+ */
+export function weekOverWeek(now = new Date()): { current: Timeframe; previous: Timeframe } {
+  const to = new Date(now);
+  const currentFrom = new Date(now);
+  currentFrom.setUTCDate(currentFrom.getUTCDate() - 7);
+
+  const previousFrom = new Date(now);
+  previousFrom.setUTCDate(previousFrom.getUTCDate() - 14);
+
+  return {
+    current: { from: currentFrom, to },
+    previous: { from: previousFrom, to: currentFrom },
+  };
+}
+
+/** Gathers everything the weekly summary needs, with all arithmetic done here. */
+export async function weeklySummaryInput(pageId: string, now = new Date()) {
+  const { current, previous } = weekOverWeek(now);
+
+  const [thisWeek, lastWeek, sources, links] = await Promise.all([
+    summarize(pageId, current),
+    summarize(pageId, previous),
+    sourceBreakdown(pageId, current),
+    linkPerformance(pageId, current),
+  ]);
+
+  return {
+    views: thisWeek.views,
+    clicks: thisWeek.clicks,
+    uniqueVisitors: thisWeek.uniqueVisitors,
+    ctr: thisWeek.ctr,
+    previousViews: lastWeek.views,
+    previousClicks: lastWeek.clicks,
+    topSources: sources.slice(0, 3),
+    topLinks: links.slice(0, 3).map((l) => ({ title: l.title, clicks: l.clicks })),
+  };
+}
