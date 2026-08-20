@@ -1,12 +1,13 @@
+import { getRedis, noteRedisFailure, noteRedisSuccess } from "./redis";
+
 /**
- * Fixed-window rate limiter.
+ * Fixed-window rate limiting, over Redis when available and memory otherwise.
  *
- * The in-memory implementation is correct for a single process and is what
- * runs in development and small deployments. It is intentionally behind an
- * interface: on a multi-instance deployment each process would keep its own
- * counters and the effective limit would multiply by the instance count, so
- * production should swap in the Redis store (see `createRedisRateLimiter`
- * below) where the counter is shared.
+ * The distinction matters: on a multi-instance deployment each process keeps
+ * its own memory counters, so the effective limit multiplies by the instance
+ * count. `createLimiter` at the bottom of this file picks the shared Redis
+ * store whenever `REDIS_URL` is set, which is what makes the published limits
+ * mean what they say in production.
  */
 
 export interface RateLimitResult {
@@ -98,11 +99,61 @@ export function createRedisRateLimiter(
 }
 
 /**
+ * Builds a limiter backed by Redis when one is configured, and by memory
+ * otherwise.
+ *
+ * Resolution is deferred to first use rather than done at module load: route
+ * modules are imported during the build, when `REDIS_URL` may not be set, and
+ * an eagerly-chosen memory limiter would then be baked in for the process's
+ * whole life.
+ *
+ * `namespace` keys the counter, so two limiters never share a budget and a
+ * shared Redis can serve several environments.
+ */
+export function createLimiter(namespace: string, options: RateLimitOptions): RateLimiter {
+  // Kept so a Redis outage falls back to a limiter with continuity, rather
+  // than to a fresh empty one on every request.
+  const fallback = createMemoryRateLimiter(options);
+
+  return {
+    async check(key: string): Promise<RateLimitResult> {
+      const namespaced = `rl:${namespace}:${key}`;
+      // Resolved per call, not once: the breaker can take Redis away and give
+      // it back at any point in the process's life.
+      const redis = getRedis();
+
+      if (!redis) return fallback.check(namespaced);
+
+      try {
+        const result = await createRedisRateLimiter(redis, options).check(namespaced);
+        noteRedisSuccess();
+        return result;
+      } catch (error) {
+        noteRedisFailure();
+        // A Redis outage must not take the site down with it. Failing open is
+        // the right call for these limiters: they exist to blunt abuse, and
+        // refusing every request would be a worse outage than the one we are
+        // already having.
+        console.error(`[rate-limit] ${namespace} falling back to memory`, error);
+        // Fall back to the in-process counter rather than failing open: a
+        // degraded limit is still a limit, and failing open during an outage
+        // is exactly when abuse is cheapest.
+        return fallback.check(namespaced);
+      }
+    },
+  };
+}
+
+/**
  * The app's limiters.
  *
  * Analytics is generous — a real visitor clicking around a page produces
- * several events a minute and must never be throttled — while AI generation
- * (phase 3) is tight because each call costs money.
+ * several events a minute and must never be throttled. Form submission is
+ * tight because each row costs a human's attention. AI generation is tightest
+ * because each call costs money; it sits in front of the monthly quota as a
+ * burst guard, so a stuck client cannot spend a month's allowance in seconds.
  */
-export const analyticsLimiter = createMemoryRateLimiter({ limit: 120, windowMs: 60_000 });
-export const unlockLimiter = createMemoryRateLimiter({ limit: 10, windowMs: 60_000 });
+export const analyticsLimiter = createLimiter("events", { limit: 120, windowMs: 60_000 });
+export const unlockLimiter = createLimiter("unlock", { limit: 10, windowMs: 60_000 });
+export const formLimiter = createLimiter("form", { limit: 5, windowMs: 60_000 });
+export const aiLimiter = createLimiter("ai", { limit: 5, windowMs: 60_000 });

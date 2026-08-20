@@ -6,6 +6,7 @@ import { createLinkAction, updateLinkAction } from "@/actions/page";
 import type { ActionState } from "@/actions/auth";
 import type { EditorLink } from "./types";
 import { BLOCK_LABELS, BLOCK_TYPES, IMAGE_BLOCK_TYPES, URL_BLOCK_TYPES } from "@/lib/block-types";
+import { ImageUploader } from "./ImageUploader";
 
 const EMPTY: ActionState = {};
 
@@ -15,14 +16,17 @@ export function LinkForm({
   mode,
   link,
   onDone,
+  storageEnabled = false,
 }: {
   mode: "create" | "edit";
   link?: EditorLink;
   onDone?: () => void;
+  storageEnabled?: boolean;
 }) {
   const action = mode === "create" ? createLinkAction : updateLinkAction;
   const [state, formAction] = useActionState(action, EMPTY);
   const [type, setType] = useState<EditorLink["type"]>(link?.type ?? "LINK");
+  const [images, setImages] = useState<string[]>(link?.images ?? []);
   const [changePassword, setChangePassword] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const succeeded = state === EMPTY ? false : !state.error && !state.fieldErrors;
@@ -109,14 +113,50 @@ export function LinkForm({
           error={state.fieldErrors?.images}
           hint="une URL par ligne"
         >
-          <textarea
-            name="images"
-            defaultValue={(link?.images ?? []).join("\n")}
-            rows={type === "GALLERY" ? 4 : 2}
-            placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"}
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.images)}
-          />
+          <div className="flex flex-col gap-2">
+            <textarea
+              name="images"
+              value={images.join("\n")}
+              onChange={(e) => setImages(e.target.value.split(/\r?\n/))}
+              rows={type === "GALLERY" ? 4 : 2}
+              placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"}
+              className={inputClass}
+              aria-invalid={Boolean(state.fieldErrors?.images)}
+            />
+
+            {images.filter(Boolean).length > 0 ? (
+              <ul className="flex flex-wrap gap-2">
+                {images.filter(Boolean).map((src) => (
+                  <li key={src}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt=""
+                      aria-hidden
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 rounded object-cover"
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {storageEnabled ? (
+              <ImageUploader
+                purpose="gallery"
+                label={type === "GALLERY" ? "Téléverser des images" : "Téléverser une image"}
+                multiple={type === "GALLERY"}
+                onUploaded={(uploaded) => {
+                  const urls = uploaded.map((u) => u.url);
+                  // An image block holds one; a gallery accumulates.
+                  setImages((current) =>
+                    type === "GALLERY" ? [...current.filter(Boolean), ...urls] : urls.slice(0, 1),
+                  );
+                }}
+              />
+            ) : null}
+          </div>
         </Field>
       ) : (
         <input type="hidden" name="images" value="" />

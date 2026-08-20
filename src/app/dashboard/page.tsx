@@ -7,6 +7,7 @@ import { ProfileForm } from "@/components/dashboard/ProfileForm";
 import { PhonePreview } from "@/components/dashboard/PhonePreview";
 import { PageRenderer } from "@/components/public/PageRenderer";
 import { appUrl } from "@/lib/urls";
+import { isStorageConfigured } from "@/lib/storage";
 
 export const metadata = { title: "Éditeur" };
 
@@ -23,6 +24,7 @@ export default async function EditorPage() {
             Votre page
           </h1>
           <ProfileForm
+            storageEnabled={isStorageConfigured()}
             page={{
               slug: page.slug,
               displayName: page.displayName,
@@ -41,6 +43,7 @@ export default async function EditorPage() {
           </p>
 
           <LinkList
+            storageEnabled={isStorageConfigured()}
             links={page.links.map((l) => ({
               id: l.id,
               type: l.type,
@@ -56,7 +59,7 @@ export default async function EditorPage() {
 
           <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-4">
             <h3 className="mb-3 text-sm font-medium text-neutral-200">Ajouter un bloc</h3>
-            <LinkForm mode="create" />
+            <LinkForm mode="create" storageEnabled={isStorageConfigured()} />
           </div>
         </section>
       </div>

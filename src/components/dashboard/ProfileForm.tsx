@@ -1,20 +1,24 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { updateProfileAction } from "@/actions/page";
 import type { ActionState } from "@/actions/auth";
 import { Field, inputClass } from "./LinkForm";
 import { displayHost } from "@/lib/urls";
+import { ImageUploader } from "./ImageUploader";
 
 const EMPTY: ActionState = {};
 
 export function ProfileForm({
   page,
+  storageEnabled,
 }: {
   page: { slug: string; displayName: string; bio: string | null; avatarUrl: string | null };
+  storageEnabled: boolean;
 }) {
   const [state, formAction] = useActionState(updateProfileAction, EMPTY);
+  const [avatarUrl, setAvatarUrl] = useState(page.avatarUrl ?? "");
   const saved = state !== EMPTY && !state.error && !state.fieldErrors;
 
   return (
@@ -49,14 +53,44 @@ export function ProfileForm({
         <textarea name="bio" defaultValue={page.bio ?? ""} rows={2} maxLength={280} className={inputClass} />
       </Field>
 
-      <Field label="URL de l'avatar" error={state.fieldErrors?.avatarUrl} hint="facultatif">
-        <input
-          name="avatarUrl"
-          type="url"
-          defaultValue={page.avatarUrl ?? ""}
-          placeholder="https://…/photo.jpg"
-          className={inputClass}
-        />
+      <Field
+        label="Avatar"
+        error={state.fieldErrors?.avatarUrl}
+        hint={storageEnabled ? "téléversez une image ou collez une URL" : "URL, facultatif"}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                aria-hidden
+                width={40}
+                height={40}
+                className="h-10 w-10 shrink-0 rounded-full object-cover"
+              />
+            ) : null}
+            <input
+              name="avatarUrl"
+              type="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://…/photo.jpg"
+              className={inputClass}
+            />
+          </div>
+
+          {storageEnabled ? (
+            <ImageUploader
+              purpose="avatar"
+              label="Téléverser une image"
+              onUploaded={([image]) => {
+                if (image) setAvatarUrl(image.url);
+              }}
+            />
+          ) : null}
+        </div>
       </Field>
 
       {state.error ? (

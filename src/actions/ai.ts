@@ -4,7 +4,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateThemeForUser, themeQuota } from "@/server/ai";
-import { updatePageTheme, getEditablePage } from "@/server/pages";
+import { getEditablePage, invalidatePublicPage, updatePageTheme } from "@/server/pages";
 import { revalidatePath } from "next/cache";
 import type { Theme } from "@/lib/theme/schema";
 import type { ContrastFix } from "@/lib/theme/sanitize";
@@ -51,6 +51,10 @@ export async function generateThemeAction(description: string): Promise<Generate
           error: `Vous avez utilisé vos ${outcome.quota.limit} générations du mois. Passez à Pro pour un accès illimité.`,
           remaining: 0,
         };
+      case "burst":
+        return {
+          error: "Trop de générations d'affilée. Réessayez dans une minute.",
+        };
       case "unavailable":
         return { error: "La génération par IA n'est pas configurée sur cette instance." };
       case "failed":
@@ -80,6 +84,7 @@ export async function applyGeneratedThemeAction(theme: unknown): Promise<{ error
   const ok = await updatePageTheme(page.id, userId, theme as Theme);
   if (!ok) return { error: "Enregistrement impossible." };
 
+  await invalidatePublicPage(page.slug);
   revalidatePath("/dashboard/appearance");
   revalidatePath(`/${page.slug}`);
   return {};

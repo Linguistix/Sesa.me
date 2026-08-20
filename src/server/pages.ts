@@ -5,6 +5,7 @@ import { slugSchema } from "@/lib/slug";
 import { sanitizeTheme } from "@/lib/theme/sanitize";
 import { formFieldsSchema } from "@/lib/forms";
 import { avatarAllowed } from "@/lib/avatar";
+import { cacheDelete, cached, publicPageKey } from "@/lib/cache";
 import { can } from "@/lib/plans";
 import { DEFAULT_THEME } from "@/lib/theme/presets";
 import type { Theme } from "@/lib/theme/schema";
@@ -27,6 +28,18 @@ export type PageProfileInput = z.infer<typeof pageProfileSchema>;
  * build. `sanitizeTheme` falls back to the default rather than throwing.
  */
 export async function getPublicPage(slug: string) {
+  // 60s rather than matching the route's 300s revalidate: this cache exists to
+  // absorb the stampede when several instances miss at once, not to extend how
+  // stale a page can get. Mutations invalidate it explicitly anyway.
+  return cached(publicPageKey(slug), 60, () => loadPublicPage(slug));
+}
+
+/** Drops the cached copy of a page. Called after every mutation that changes it. */
+export async function invalidatePublicPage(slug: string): Promise<void> {
+  await cacheDelete(publicPageKey(slug));
+}
+
+async function loadPublicPage(slug: string) {
   const page = await prisma.page.findUnique({
     where: { slug: slug.toLowerCase() },
     include: {

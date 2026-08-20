@@ -5,6 +5,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import {
   getEditablePage,
+  invalidatePublicPage,
   isSlugAvailable,
   pageProfileSchema,
   updatePageProfile,
@@ -36,6 +37,10 @@ async function requireUserId(): Promise<string> {
  * and the public slug are revalidated after every successful mutation.
  */
 async function revalidatePageRoutes(slug: string) {
+  // Two caches to clear: Next's rendered-page cache, and the shared data cache
+  // in front of the database read. Dropping only the first would re-render the
+  // page from stale data and look like the edit silently failed.
+  await invalidatePublicPage(slug);
   revalidatePath("/dashboard");
   revalidatePath(`/${slug}`);
 }

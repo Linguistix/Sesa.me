@@ -65,7 +65,13 @@ function announcementsFor(links: EditorLink[]): Announcements {
  * `useOptimistic` rolls the list back on its own if the action throws, so a
  * failed save cannot leave the UI showing an order the database rejected.
  */
-export function LinkList({ links }: { links: EditorLink[] }) {
+export function LinkList({
+  links,
+  storageEnabled = false,
+}: {
+  links: EditorLink[];
+  storageEnabled?: boolean;
+}) {
   const [optimisticLinks, setOptimisticOrder] = useOptimistic(
     links,
     (current: EditorLink[], orderedIds: string[]) => {
@@ -142,6 +148,7 @@ export function LinkList({ links }: { links: EditorLink[] }) {
               <SortableRow
                 key={link.id}
                 link={link}
+                storageEnabled={storageEnabled}
                 isEditing={editingId === link.id}
                 onEdit={() => setEditingId(editingId === link.id ? null : link.id)}
                 onDone={() => setEditingId(null)}
@@ -156,11 +163,13 @@ export function LinkList({ links }: { links: EditorLink[] }) {
 
 function SortableRow({
   link,
+  storageEnabled,
   isEditing,
   onEdit,
   onDone,
 }: {
   link: EditorLink;
+  storageEnabled: boolean;
   isEditing: boolean;
   onEdit: () => void;
   onDone: () => void;
@@ -247,7 +256,7 @@ function SortableRow({
 
       {isEditing ? (
         <div className="border-t border-white/10 p-3">
-          <LinkForm mode="edit" link={link} onDone={onDone} />
+          <LinkForm mode="edit" link={link} onDone={onDone} storageEnabled={storageEnabled} />
         </div>
       ) : null}
     </li>

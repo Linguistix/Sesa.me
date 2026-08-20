@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { limitsFor } from "@/lib/plans";
+import { aiLimiter } from "@/lib/rate-limit";
 import { generateTheme, AiUnavailableError, type DesignResult } from "@/lib/ai/design";
 import { summarizeWeek, type WeeklySummaryInput } from "@/lib/ai/summary";
 import type { Plan } from "@/generated/prisma/enums";
@@ -46,6 +47,7 @@ export async function themeQuota(userId: string, plan: Plan): Promise<QuotaState
 export type GenerateOutcome =
   | { ok: true; result: DesignResult; quota: QuotaState }
   | { ok: false; reason: "quota"; quota: QuotaState }
+  | { ok: false; reason: "burst"; retryAt: Date }
   | { ok: false; reason: "unavailable" }
   | { ok: false; reason: "failed" };
 
@@ -62,6 +64,12 @@ export async function generateThemeForUser(
   plan: Plan,
   description: string,
 ): Promise<GenerateOutcome> {
+  // The burst guard sits in front of the monthly quota. Pro is unlimited by
+  // the month, which is exactly why it still needs a per-minute ceiling: a
+  // stuck client retrying in a loop would otherwise bill indefinitely.
+  const burst = await aiLimiter.check(userId);
+  if (!burst.ok) return { ok: false, reason: "burst", retryAt: new Date(burst.resetAt) };
+
   const quota = await themeQuota(userId, plan);
   if (quota.remaining <= 0) return { ok: false, reason: "quota", quota };
 

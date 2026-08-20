@@ -34,7 +34,8 @@ const bodySchema = z.object({
  */
 export async function POST(request: Request) {
   const ip = clientIp(request.headers);
-  const { ok } = await analyticsLimiter.check(`events:${ip ?? "unknown"}`);
+  // The limiter already namespaces its keys; pass only what varies.
+  const { ok } = await analyticsLimiter.check(ip ?? "unknown");
   if (!ok) return new NextResponse(null, { status: 204 });
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));

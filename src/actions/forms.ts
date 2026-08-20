@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getEditablePage } from "@/server/pages";
+import { getEditablePage, invalidatePublicPage } from "@/server/pages";
 import { formFieldsSchema } from "@/lib/forms";
 import { isSafeHttpUrl } from "@/lib/links";
 import type { ActionState } from "./auth";
@@ -71,6 +71,7 @@ export async function updateFormAction(
 
   if (result.count !== 1) return { error: "Formulaire introuvable." };
 
+  await invalidatePublicPage(page.slug);
   revalidatePath("/dashboard/submissions");
   revalidatePath(`/${page.slug}`);
   return {};

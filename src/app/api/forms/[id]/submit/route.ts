@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { submitForm } from "@/server/forms";
-import { createMemoryRateLimiter } from "@/lib/rate-limit";
+import { formLimiter } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/analytics/visitor";
 
 /**
@@ -9,12 +9,10 @@ import { clientIp } from "@/lib/analytics/visitor";
  * Tighter rate limiting than analytics: this endpoint writes rows a human will
  * later read, so a spam flood costs the page owner attention, not just disk.
  */
-const submitLimiter = createMemoryRateLimiter({ limit: 5, windowMs: 60_000 });
-
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
-  const { ok } = await submitLimiter.check(`form:${id}:${clientIp(request.headers) ?? "unknown"}`);
+  const { ok } = await formLimiter.check(`${id}:${clientIp(request.headers) ?? "unknown"}`);
   if (!ok) {
     return NextResponse.json(
       { error: "Trop de tentatives. Réessayez dans une minute." },
