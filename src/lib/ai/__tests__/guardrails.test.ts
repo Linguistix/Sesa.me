@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it } from "vitest";
 import { sanitizeTheme, auditContrast } from "@/lib/theme/sanitize";
 import { DEFAULT_THEME } from "@/lib/theme/presets";
 import { themeToCssVars, themeFontHref } from "@/lib/theme/render";

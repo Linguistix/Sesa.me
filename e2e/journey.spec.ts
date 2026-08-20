@@ -142,9 +142,25 @@ test("a password-gated link never exposes its destination until unlocked", async
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
-  await dialog.getByPlaceholder("Mot de passe").fill("mauvais");
-  await dialog.getByRole("button", { name: "Ouvrir" }).click();
-  await expect(dialog.getByRole("alert")).toContainText("incorrect");
+  // The dialog is translated, and this browser context is en-US, so selectors
+  // here go by role and type rather than by the visible French strings.
+  await dialog.locator('input[type="password"]').fill("mauvais");
+  await dialog.getByRole("button", { name: /Ouvrir|Open|Abrir/ }).click();
+  await expect(dialog.getByRole("alert")).toContainText(/incorrect|incorrecta/i);
+});
+
+test("a French visitor sees the unlock dialog in French", async ({ browser }) => {
+  const context = await browser.newContext({ locale: "fr-FR" });
+  const page = await context.newPage();
+
+  await page.goto("/camille");
+  await page.getByRole("button", { name: /Espace membres/ }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByPlaceholder("Mot de passe")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Ouvrir" })).toBeVisible();
+
+  await context.close();
 });
 
 test("the QR endpoint serves a downloadable code for a real page", async ({ request }) => {

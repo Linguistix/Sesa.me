@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { slugSchema } from "@/lib/slug";
 import { sanitizeTheme } from "@/lib/theme/sanitize";
+import { formFieldsSchema } from "@/lib/forms";
+import { avatarAllowed } from "@/lib/avatar";
+import { can } from "@/lib/plans";
 import { DEFAULT_THEME } from "@/lib/theme/presets";
 import type { Theme } from "@/lib/theme/schema";
 
@@ -27,8 +30,12 @@ export async function getPublicPage(slug: string) {
   const page = await prisma.page.findUnique({
     where: { slug: slug.toLowerCase() },
     include: {
-      links: { where: { isActive: true }, orderBy: { position: "asc" } },
-      user: { select: { plan: true } },
+      links: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+        include: { form: true },
+      },
+      user: { select: { plan: true, locale: true } },
     },
   });
 
@@ -43,6 +50,10 @@ export async function getPublicPage(slug: string) {
     bio: page.bio,
     avatarUrl: page.avatarUrl,
     plan: page.user.plan,
+    isVerified: can(page.user.plan, "verifiedBadge"),
+    /// The owner's locale, used as the fallback when a visitor's browser
+    /// asks for a language the app does not support.
+    ownerLocale: page.user.locale,
     theme,
     links: page.links.map((l) => {
       const isLocked = l.passwordHash !== null;
@@ -58,7 +69,9 @@ export async function getPublicPage(slug: string) {
         emoji: l.emoji,
         iconUrl: l.iconUrl,
         body: l.body,
+        images: l.images,
         isLocked,
+        form: l.form ? toRenderableForm(l.form) : null,
       };
     }),
   };
@@ -104,6 +117,13 @@ export async function createPageForUser(userId: string, input: PageProfileInput)
 }
 
 export async function updatePageProfile(pageId: string, userId: string, input: PageProfileInput) {
+  // Animated avatars are a Pro feature. Checking here rather than only in the
+  // form matters: the field is a plain URL a Free user can edit directly.
+  const owner = await prisma.user.findUnique({ where: { id: userId }, select: { plan: true } });
+  if (!avatarAllowed(input.avatarUrl || null, can(owner?.plan ?? "FREE", "canUseAnimatedAvatar"))) {
+    return "ANIMATED_AVATAR_REQUIRES_PRO" as const;
+  }
+
   // The userId in the where-clause is the authorisation check: a mismatched
   // owner updates zero rows instead of somebody else's page.
   const result = await prisma.page.updateMany({
@@ -115,7 +135,7 @@ export async function updatePageProfile(pageId: string, userId: string, input: P
       avatarUrl: input.avatarUrl || null,
     },
   });
-  return result.count === 1;
+  return result.count === 1 ? true : ("NOT_FOUND" as const);
 }
 
 export async function updatePageTheme(pageId: string, userId: string, theme: Theme) {
@@ -125,4 +145,16 @@ export async function updatePageTheme(pageId: string, userId: string, theme: The
     data: { themeJson: safe },
   });
   return result.count === 1;
+}
+
+/**
+ * Validates a form's stored field definitions on read.
+ *
+ * The column is JSON, so a row could predate a schema change. A form whose
+ * definition no longer parses renders as nothing rather than as a broken
+ * input list.
+ */
+function toRenderableForm(form: { id: string; fieldsJson: unknown }) {
+  const fields = formFieldsSchema.safeParse(form.fieldsJson);
+  return fields.success ? { id: form.id, fields: fields.data } : null;
 }

@@ -48,6 +48,7 @@ export default async function EditorPage() {
               url: l.url,
               emoji: l.emoji,
               body: l.body,
+              images: l.images,
               isActive: l.isActive,
               hasPassword: l.passwordHash !== null,
             }))}
@@ -72,6 +73,7 @@ export default async function EditorPage() {
               avatarUrl: page.avatarUrl,
               theme: page.theme,
               showBranding: true,
+              locale: "fr",
               links: page.links
                 .filter((l) => l.isActive)
                 .map((l) => ({
@@ -82,6 +84,7 @@ export default async function EditorPage() {
                   emoji: l.emoji,
                   iconUrl: l.iconUrl,
                   body: l.body,
+                  images: l.images,
                   isLocked: l.passwordHash !== null,
                 })),
             }}

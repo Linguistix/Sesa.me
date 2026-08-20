@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import type { RenderableLink } from "./PageRenderer";
+import { translator } from "@/lib/i18n/messages";
+import { faviconUrl } from "@/lib/favicon";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * A single link block.
@@ -11,7 +15,18 @@ import type { RenderableLink } from "./PageRenderer";
  * component only earns its keep for password-gated links, where the
  * destination has to stay server-side until the password checks out.
  */
-export function LinkButton({ link, shadow }: { link: RenderableLink; shadow: boolean }) {
+export function LinkButton({
+  link,
+  shadow,
+  locale,
+}: {
+  link: RenderableLink;
+  shadow: boolean;
+  // The locale crosses the server/client boundary, not the translator —
+  // functions are not serializable in a React Server Components payload.
+  locale: Locale;
+}) {
+  const t = translator(locale);
   const [unlocking, setUnlocking] = useState(false);
 
   const className = [
@@ -32,12 +47,32 @@ export function LinkButton({ link, shadow }: { link: RenderableLink; shadow: boo
     outlineColor: "var(--sesame-btn-text)",
   } as const;
 
+  // Emoji wins, then an explicit icon, then the destination's own favicon.
+  const iconSrc = link.emoji ? null : (link.iconUrl ?? faviconUrl(link.url));
+
   const label = (
     <>
       {link.emoji ? (
         <span aria-hidden className="text-lg leading-none">
           {link.emoji}
         </span>
+      ) : iconSrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={iconSrc}
+          alt=""
+          aria-hidden
+          width={18}
+          height={18}
+          loading="lazy"
+          decoding="async"
+          className="h-[18px] w-[18px] shrink-0 rounded-sm"
+          // Plenty of sites have no /favicon.ico; a broken-image glyph would
+          // look worse than no icon at all.
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
       ) : null}
       <span className="flex-1 text-center">{link.title}</span>
       {link.isLocked ? (
@@ -71,22 +106,32 @@ export function LinkButton({ link, shadow }: { link: RenderableLink; shadow: boo
         className={className}
         style={style}
         aria-haspopup="dialog"
-        aria-label={`${link.title} — protégé par mot de passe`}
+        aria-label={`${link.title} — ${t("page.locked")}`}
         data-link-id={link.id}
       >
         {label}
       </button>
       {unlocking ? (
-        <UnlockDialog link={link} onClose={() => setUnlocking(false)} />
+        <UnlockDialog link={link} locale={locale} onClose={() => setUnlocking(false)} />
       ) : null}
     </>
   );
 }
 
-function UnlockDialog({ link, onClose }: { link: RenderableLink; onClose: () => void }) {
+function UnlockDialog({
+  link,
+  locale,
+  onClose,
+}: {
+  link: RenderableLink;
+  locale: Locale;
+  onClose: () => void;
+}) {
+  const t = translator(locale);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -102,19 +147,20 @@ function UnlockDialog({ link, onClose }: { link: RenderableLink; onClose: () => 
     setPending(false);
 
     if (!response.ok) {
-      setError("Mot de passe incorrect.");
+      setError(t("unlock.wrong"));
       return;
     }
 
     const { url } = (await response.json()) as { url: string };
-    window.location.href = url;
+    window.location.assign(url);
   }
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label={`Déverrouiller ${link.title}`}
+      aria-label={`${link.title} — ${t("page.locked")}`}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-5"
       onClick={onClose}
     >
@@ -125,16 +171,15 @@ function UnlockDialog({ link, onClose }: { link: RenderableLink; onClose: () => 
       >
         <h2 className="text-base font-semibold text-[var(--sesame-text)]">{link.title}</h2>
         <p className="mt-1 text-sm text-[var(--sesame-muted)]">
-          Ce lien est protégé. Entrez le mot de passe pour continuer.
+          {t("unlock.title")}
         </p>
 
         <input
           type="password"
-          autoFocus
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-4 w-full rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-[var(--sesame-text)] outline-none focus:border-[var(--sesame-accent)]"
-          placeholder="Mot de passe"
+          placeholder={t("unlock.placeholder")}
           aria-invalid={error !== null}
           aria-describedby={error ? `unlock-error-${link.id}` : undefined}
         />
@@ -151,14 +196,14 @@ function UnlockDialog({ link, onClose }: { link: RenderableLink; onClose: () => 
             onClick={onClose}
             className="flex-1 rounded-lg border border-white/15 px-4 py-2 text-sm text-[var(--sesame-muted)]"
           >
-            Annuler
+            {t("unlock.cancel")}
           </button>
           <button
             type="submit"
             disabled={pending || password.length === 0}
             className="flex-1 rounded-lg bg-[var(--sesame-accent)] px-4 py-2 text-sm font-medium text-[var(--sesame-btn-text)] disabled:opacity-50"
           >
-            {pending ? "Vérification…" : "Ouvrir"}
+            {pending ? t("unlock.checking") : t("unlock.submit")}
           </button>
         </div>
       </form>

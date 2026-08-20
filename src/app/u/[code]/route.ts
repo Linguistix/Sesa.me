@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { resolveShortLink } from "@/server/shortlinks";
 import { ingest } from "@/server/analytics";
 import { isValidCode } from "@/lib/shortcode";
+import { isInAppBrowser, toDeepLink } from "@/lib/deeplinks";
+import { deepLinkInterstitial } from "@/lib/deeplink-page";
 import {
   clientCountry,
   clientIp,
@@ -45,8 +47,33 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     visitorHash: visitorHash({ ip: clientIp(request.headers), userAgent, pageId: shortLink.pageId }),
   });
 
+  // Inside Instagram's or TikTok's embedded browser, an https link stays in
+  // the webview even when the target app is installed, because those browsers
+  // ignore Universal Links. There, and only there, serve the interstitial that
+  // attempts the app's own scheme with a timed fallback to the web.
+  const deepLink = isInAppBrowser(userAgent) ? toDeepLink(shortLink.targetUrl) : null;
+
+  if (deepLink) {
+    return new NextResponse(deepLinkInterstitial(deepLink, hostOf(shortLink.targetUrl)), {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, max-age=0",
+        "X-Robots-Tag": "noindex",
+      },
+    });
+  }
+
   const response = NextResponse.redirect(shortLink.targetUrl, 302);
   // Short links must never be cached: the whole point is that every hit counts.
   response.headers.set("Cache-Control", "no-store, max-age=0");
   return response;
+}
+
+/** Host of a URL, for the interstitial's visible fallback label. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "la page";
+  }
 }

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { THEME_PRESETS } from "../src/lib/theme/presets";
+import { DEFAULT_FORM_FIELDS } from "../src/lib/forms";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
@@ -78,14 +79,46 @@ async function main() {
       },
       {
         pageId: page.id,
+        type: "EMBED",
+        title: "Dernier single",
+        url: "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT",
+        position: 6,
+      },
+      {
+        pageId: page.id,
+        type: "GALLERY",
+        title: "En tournée",
+        images: [
+          "https://picsum.photos/seed/sesame1/600/600",
+          "https://picsum.photos/seed/sesame2/600/600",
+          "https://picsum.photos/seed/sesame3/600/600",
+        ],
+        position: 7,
+      },
+      {
+        pageId: page.id,
         type: "LINK",
         title: "Espace membres",
         url: "https://example.com/members",
         emoji: "🔐",
-        position: 6,
+        position: 8,
         passwordHash: await bcrypt.hash("secret123", 10),
       },
     ],
+  });
+
+  // A form block, plus the form it submits to.
+  const formLink = await prisma.link.create({
+    data: { pageId: page.id, type: "FORM", title: "Me contacter", position: 9 },
+  });
+
+  await prisma.form.create({
+    data: {
+      pageId: page.id,
+      linkId: formLink.id,
+      title: "Me contacter",
+      fieldsJson: DEFAULT_FORM_FIELDS,
+    },
   });
 
   console.log(`Seeded ${email} / demo1234 → /${page.slug}`);

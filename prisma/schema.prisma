@@ -97,8 +97,10 @@ model Page {
 
   user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   links      Link[]
-  events     AnalyticsEvent[]
-  shortLinks ShortLink[]
+  events       AnalyticsEvent[]
+  shortLinks   ShortLink[]
+  forms        Form[]
+  customDomain CustomDomain?
 
   @@index([userId])
   @@map("pages")
@@ -109,6 +111,14 @@ enum LinkType {
   HEADING
   TEXT
   SOCIAL
+  /// Music/video player embedded from an allow-listed provider.
+  EMBED
+  /// Photo grid with a lightbox.
+  GALLERY
+  /// Contact or newsletter capture form.
+  FORM
+  /// Large clickable image card.
+  IMAGE
 }
 
 /// A block on a page. `position` orders blocks ascending.
@@ -122,6 +132,8 @@ model Link {
   iconUrl      String?
   /// Free-text body for TEXT blocks.
   body         String?  @db.Text
+  /// Image URLs for GALLERY blocks, and the single image for IMAGE blocks.
+  images       String[] @default([])
   position     Int
   isActive     Boolean  @default(true)
   /// bcrypt hash — when set, the destination is gated behind a password.
@@ -132,6 +144,7 @@ model Link {
   page       Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
   events     AnalyticsEvent[]
   shortLinks ShortLink[]
+  form       Form?
 
   @@index([pageId, position])
   @@map("links")
@@ -265,4 +278,58 @@ model AiGeneration {
 
   @@index([userId, kind, createdAt])
   @@map("ai_generations")
+}
+
+// --- Phase 4: forms, custom domains ---------------------------------------
+
+/// A contact or newsletter form attached to a page.
+model Form {
+  id        String   @id @default(cuid())
+  pageId    String
+  linkId    String?  @unique
+  title     String
+  /// Ordered field definitions, validated against `formFieldsSchema`.
+  fieldsJson Json
+  /// Message shown after a successful submission.
+  successMessage String @default("Merci ! Votre message a bien été envoyé.")
+  /// Optional POST target for each submission, e.g. a Brevo or Mailchimp hook.
+  webhookUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page        Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  link        Link?            @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  submissions FormSubmission[]
+
+  @@index([pageId])
+  @@map("forms")
+}
+
+/// One submitted response.
+model FormSubmission {
+  id          String   @id @default(cuid())
+  formId      String
+  /// Answers keyed by field id. Only keys declared on the form are stored.
+  dataJson    Json
+  submittedAt DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, submittedAt])
+  @@map("form_submissions")
+}
+
+/// A custom domain pointing at a page. Pro only.
+model CustomDomain {
+  id       String  @id @default(cuid())
+  pageId   String  @unique
+  hostname String  @unique
+  /// Random token the user publishes as a TXT record to prove ownership.
+  verificationToken String
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("custom_domains")
 }

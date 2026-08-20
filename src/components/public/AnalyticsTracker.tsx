@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   analyticsAllowed,
-  readConsent,
+  getConsentServerSnapshot,
+  getConsentSnapshot,
+  setConsent,
   signalsOptOut,
-  writeConsent,
+  subscribeConsent,
   type ConsentValue,
 } from "@/lib/analytics/consent";
 
@@ -18,16 +20,16 @@ import {
  * public page's markup free of per-link JavaScript.
  */
 export function AnalyticsTracker({ pageId }: { pageId: string }) {
-  const [consent, setConsent] = useState<ConsentValue | null>(null);
-  const [resolved, setResolved] = useState(false);
+  const consent = useSyncExternalStore(
+    subscribeConsent,
+    getConsentSnapshot,
+    // During SSR nothing is known and nothing is measured, so the banner is
+    // not rendered until the client has read the stored answer.
+    getConsentServerSnapshot,
+  );
 
   useEffect(() => {
-    setConsent(readConsent());
-    setResolved(true);
-  }, []);
-
-  useEffect(() => {
-    if (!resolved || !analyticsAllowed()) return;
+    if (!analyticsAllowed()) return;
 
     send({ pageId, type: "PAGE_VIEW", referrer: document.referrer || null });
 
@@ -41,20 +43,11 @@ export function AnalyticsTracker({ pageId }: { pageId: string }) {
 
     document.addEventListener("click", onClick, { capture: true });
     return () => document.removeEventListener("click", onClick, { capture: true });
-  }, [pageId, consent, resolved]);
+  }, [pageId, consent]);
 
-  // Wait for the stored answer before rendering, so the banner does not flash
-  // for visitors who already decided.
-  if (!resolved || consent !== null || signalsOptOut()) return null;
+  if (consent !== null || signalsOptOut()) return null;
 
-  return (
-    <ConsentBanner
-      onDecide={(value) => {
-        writeConsent(value);
-        setConsent(value);
-      }}
-    />
-  );
+  return <ConsentBanner onDecide={setConsent} />;
 }
 
 function ConsentBanner({ onDecide }: { onDecide: (value: ConsentValue) => void }) {

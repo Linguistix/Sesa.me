@@ -48,3 +48,61 @@ export function signalsOptOut(): boolean {
   const nav = navigator as Navigator & { globalPrivacyControl?: boolean; doNotTrack?: string };
   return nav.globalPrivacyControl === true || nav.doNotTrack === "1";
 }
+
+// --- React binding ---------------------------------------------------------
+
+/**
+ * `localStorage` is an external store that does not exist during server
+ * rendering, which is precisely the case `useSyncExternalStore` exists for.
+ *
+ * Reading it in an effect and calling `setState` would work, but it costs an
+ * extra render on every mount and makes the "has the visitor decided yet?"
+ * question ambiguous during the first paint — which is how a consent banner
+ * ends up flashing at people who already answered.
+ */
+type Listener = () => void;
+
+const listeners = new Set<Listener>();
+
+/** Cached so `getSnapshot` returns a stable value between writes. */
+let snapshot: ConsentValue | null = null;
+let snapshotLoaded = false;
+
+export function subscribeConsent(listener: Listener): () => void {
+  listeners.add(listener);
+
+  // Another tab deciding should settle the banner here too.
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === CONSENT_KEY) {
+      snapshotLoaded = false;
+      listener();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export function getConsentSnapshot(): ConsentValue | null {
+  if (!snapshotLoaded) {
+    snapshot = readConsent();
+    snapshotLoaded = true;
+  }
+  return snapshot;
+}
+
+/** On the server nothing is known yet, and nothing is measured. */
+export function getConsentServerSnapshot(): ConsentValue | null {
+  return null;
+}
+
+/** Records a decision and notifies every subscriber. */
+export function setConsent(value: ConsentValue): void {
+  writeConsent(value);
+  snapshot = value;
+  snapshotLoaded = true;
+  for (const listener of listeners) listener();
+}

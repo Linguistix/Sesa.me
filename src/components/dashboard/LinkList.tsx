@@ -23,6 +23,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { deleteLinkAction, reorderLinksAction, toggleLinkAction } from "@/actions/page";
 import type { EditorLink } from "./types";
+import { BLOCK_LABELS } from "@/lib/block-types";
 import { LinkForm } from "./LinkForm";
 
 /**
@@ -56,12 +57,6 @@ function announcementsFor(links: EditorLink[]): Announcements {
   };
 }
 
-const TYPE_LABEL: Record<EditorLink["type"], string> = {
-  LINK: "Lien",
-  SOCIAL: "Réseau social",
-  HEADING: "Titre",
-  TEXT: "Texte",
-};
 
 /**
  * The reorderable block list.
@@ -207,7 +202,7 @@ function SortableRow({
             ) : null}
           </p>
           <p className="truncate text-xs text-neutral-500">
-            {TYPE_LABEL[link.type]}
+            {BLOCK_LABELS[link.type]}
             {link.url ? ` · ${link.url}` : ""}
           </p>
         </div>

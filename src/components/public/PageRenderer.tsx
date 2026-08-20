@@ -1,17 +1,29 @@
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import type { Theme } from "@/lib/theme/schema";
 import { themeToCssVars } from "@/lib/theme/render";
 import { LinkButton } from "./LinkButton";
+import { EmbedBlock } from "./EmbedBlock";
+import { GalleryBlock } from "./GalleryBlock";
+import { FormBlock } from "./FormBlock";
+import { ImageBlock } from "./ImageBlock";
+import { translator } from "@/lib/i18n/messages";
+import type { Locale } from "@/lib/i18n/config";
+import type { FormField } from "@/lib/forms";
+import type { BlockType } from "@/lib/block-types";
 
 export interface RenderableLink {
   id: string;
-  type: "LINK" | "HEADING" | "TEXT" | "SOCIAL";
+  type: BlockType;
   title: string;
   url: string | null;
   emoji: string | null;
   iconUrl: string | null;
   body: string | null;
+  images: string[];
   isLocked: boolean;
+  /** Present only for FORM blocks. */
+  form?: { id: string; fields: FormField[] } | null;
 }
 
 export interface RenderablePage {
@@ -22,6 +34,9 @@ export interface RenderablePage {
   theme: Theme;
   links: RenderableLink[];
   showBranding: boolean;
+  locale: Locale;
+  /** Pro accounts get a verified badge beside their name. */
+  isVerified?: boolean;
 }
 
 /**
@@ -33,6 +48,7 @@ export interface RenderablePage {
  */
 export function PageRenderer({ page, preview = false }: { page: RenderablePage; preview?: boolean }) {
   const vars = themeToCssVars(page.theme) as CSSProperties;
+  const t = translator(page.locale);
   const alignment = page.theme.layout === "left" ? "items-start text-left" : "items-center text-center";
 
   return (
@@ -79,13 +95,14 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
           )}
 
           <h1
-            className="text-2xl font-semibold tracking-tight"
+            className="flex items-center gap-1.5 text-2xl font-semibold tracking-tight"
             style={{
               fontFamily: "var(--sesame-font-display)",
               fontWeight: "var(--sesame-weight)" as CSSProperties["fontWeight"],
             }}
           >
             {page.displayName}
+            {page.isVerified ? <VerifiedBadge label={t("page.verified")} /> : null}
           </h1>
 
           {page.bio ? (
@@ -107,24 +124,27 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
           }
         >
           {page.links.map((link) => (
-            <LinkBlock key={link.id} link={link} theme={page.theme} />
+            <LinkBlock key={link.id} link={link} theme={page.theme} locale={page.locale} />
           ))}
         </nav>
 
         {page.links.length === 0 ? (
           <p className="mt-8 text-sm text-[var(--sesame-muted)]">
-            Cette page n&apos;a pas encore de liens.
+            {t("page.noLinks")}
           </p>
         ) : null}
 
         {page.showBranding ? (
           <footer className="mt-auto pt-10">
-            <a
+            <Link
               href="/"
+              // No prefetch: every creator page would otherwise pull the
+              // marketing page down on mobile for a link almost nobody taps.
+              prefetch={false}
               className="text-xs text-[var(--sesame-muted)] underline-offset-4 hover:underline"
             >
-              Propulsé par Sesame
-            </a>
+              {t("page.poweredBy")}
+            </Link>
           </footer>
         ) : null}
       </main>
@@ -132,7 +152,16 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
   );
 }
 
-function LinkBlock({ link, theme }: { link: RenderableLink; theme: Theme }) {
+function LinkBlock({
+  link,
+  theme,
+  locale,
+}: {
+  link: RenderableLink;
+  theme: Theme;
+  locale: Locale;
+}) {
+
   if (link.type === "HEADING") {
     return (
       <h2
@@ -155,5 +184,64 @@ function LinkBlock({ link, theme }: { link: RenderableLink; theme: Theme }) {
     );
   }
 
-  return <LinkButton link={link} shadow={theme.button_style.shadow} />;
+  if (link.type === "EMBED") {
+    return <EmbedBlock url={link.url ?? ""} title={link.title} />;
+  }
+
+  if (link.type === "GALLERY") {
+    return <GalleryBlock images={link.images} title={link.title} locale={locale} />;
+  }
+
+  if (link.type === "IMAGE") {
+    return (
+      <ImageBlock
+        src={link.images[0] ?? ""}
+        title={link.title}
+        href={link.url}
+        linkId={link.id}
+      />
+    );
+  }
+
+  if (link.type === "FORM") {
+    if (!link.form) return null;
+    return (
+      <FormBlock
+        formId={link.form.id}
+        title={link.title}
+        fields={link.form.fields}
+        locale={locale}
+      />
+    );
+  }
+
+  return <LinkButton link={link} shadow={theme.button_style.shadow} locale={locale} />;
+}
+
+/**
+ * The verified badge.
+ *
+ * Inline SVG rather than an emoji: the emoji renders differently on every
+ * platform and reads as decoration to a screen reader, whereas this carries a
+ * real accessible name.
+ */
+function VerifiedBadge({ label }: { label: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      role="img"
+      aria-label={label}
+      className="h-5 w-5 shrink-0"
+      style={{ color: "var(--sesame-accent)" }}
+    >
+      <path
+        fill="currentColor"
+        d="M12 1.5l2.6 2.1 3.3-.3.9 3.2 2.7 2-1.4 3 1.4 3-2.7 2-.9 3.2-3.3-.3L12 22.5l-2.6-2.1-3.3.3-.9-3.2-2.7-2 1.4-3-1.4-3 2.7-2 .9-3.2 3.3.3L12 1.5z"
+      />
+      <path
+        fill="var(--sesame-bg)"
+        d="M10.8 15.3l-3-3 1.2-1.2 1.8 1.8 4.2-4.2 1.2 1.2-5.4 5.4z"
+      />
+    </svg>
+  );
 }

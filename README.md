@@ -47,6 +47,8 @@ fonctionnalités concernées se signalent comme non configurées.
 | `npm run build` | `prisma generate` puis build de production |
 | `npm test` | Tests unitaires (Vitest) |
 | `npm run test:e2e` | Tests bout en bout (Playwright, serveur déjà démarré) |
+| `npm run lint` | ESLint (flat config) |
+| `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:migrate` | Crée et applique une migration |
 | `npm run db:seed` | Insère le compte de démonstration |
 
@@ -64,12 +66,17 @@ npm run test:e2e
 src/
   app/                 Routes (App Router)
     [slug]/            Page publique, rendue statiquement puis revalidée
-    dashboard/         Éditeur, apparence, partage — protégé par `auth()`
-    api/               QR code, déverrouillage de lien, Auth.js
+    u/[code]/          Raccourcisseur de liens + deep linking natif
+    dashboard/         Éditeur, apparence, stats, réponses, domaine, abonnement
+    api/               QR code, événements, formulaires, Stripe, export, Auth.js
   actions/             Server Actions (mutations) — hors de l'arbre de routage
   server/              Accès aux données, autorisation
   lib/
     theme/             Le contrat de thème : schéma, contraste, presets, rendu
+    ai/                Moteur de design et résumés — voir docs/ai-design.md
+    analytics/         Identification visiteur sans donnée personnelle
+    embeds/            Détection des lecteurs (liste blanche de fournisseurs)
+    i18n/              Négociation de langue et catalogues FR/EN/ES
   components/
     public/            Rendu de la page publique (sans JS superflu)
     dashboard/         Éditeur, glisser-déposer, aperçu en direct
@@ -95,8 +102,13 @@ prévue en phase 3 :
 Les thèmes préconçus passent le même audit d'accessibilité que la sortie de
 l'IA — `presets.test.ts` échoue si l'un d'eux descend sous WCAG AA.
 
-Le moteur de génération par IA est détaillé dans [`docs/ai-design.md`](docs/ai-design.md),
-et le pipeline analytics dans [`docs/analytics.md`](docs/analytics.md).
+### Documentation
+
+| Document | Contenu |
+|---|---|
+| [`docs/ai-design.md`](docs/ai-design.md) | Moteur de design par IA, chaîne de garanties, quotas |
+| [`docs/analytics.md`](docs/analytics.md) | Pipeline d'événements, vie privée, passage à l'échelle |
+| [`docs/integrations.md`](docs/integrations.md) | Lecteurs, deep linking, formulaires, i18n, domaines |
 
 ## Sécurité
 
@@ -109,12 +121,33 @@ et le pipeline analytics dans [`docs/analytics.md`](docs/analytics.md).
   identifiant deviné ne modifie aucune ligne.
 - Les slugs réservés (`api`, `dashboard`, `_next`, …) ne peuvent pas être
   revendiqués : ils partagent l'espace de noms des routes racine.
+- Les lecteurs intégrés proviennent d'une liste blanche de fournisseurs et leur
+  URL est **reconstruite** à partir d'identifiants validés — jamais reprise
+  telle quelle. Les iframes sont `sandbox`ées et chargées paresseusement.
+- Les soumissions de formulaire sont validées contre la définition **stockée**,
+  jamais contre ce que le navigateur envoie : les champs non déclarés sont
+  écartés.
+- Un domaine personnalisé ne sert la page qu'une fois la propriété prouvée par
+  un enregistrement TXT.
 
 ## Accessibilité
 
 Contraste WCAG AA garanti par construction (et corrigé automatiquement),
 navigation clavier complète — y compris le réordonnancement des blocs via
 dnd-kit —, attributs `alt` sur les images, et respect de `prefers-reduced-motion`.
+
+## Ce qui reste ouvert
+
+- **OAuth créateur** (§1.5) — connecter un compte Spotify ou YouTube pour
+  afficher automatiquement la dernière sortie. L'infrastructure est en place
+  (modèle `Account`, Auth.js configuré pour accueillir des providers), mais
+  cela demande d'enregistrer une application chez chaque fournisseur.
+- **Stockage de fichiers** (R2/S3) — les avatars et images de galerie sont
+  aujourd'hui des URL externes. Le passage à un téléversement direct est un
+  travail d'infrastructure, pas de produit.
+- **Redis** — le limiteur de débit est en mémoire, correct pour un processus
+  unique. `createRedisRateLimiter()` existe déjà derrière la même interface
+  pour un déploiement multi-instances.
 
 ## Feuille de route
 
@@ -123,5 +156,6 @@ dnd-kit —, attributs `alt` sur les images, et respect de `prefers-reduced-moti
 - [x] **Phase 2 — Monétisation** : analytics, raccourcisseur de liens, Pro, Stripe,
       export RGPD
 - [x] **Phase 3 — IA** : génération de thème (§4), résumés analytics
-- [ ] **Phase 4 — Intégrations** : Spotify/YouTube/Twitch, deep links,
-      formulaires, galerie, multi-langue, domaine personnalisé
+- [x] **Phase 4 — Intégrations** : Spotify/Apple Music/SoundCloud/YouTube/Twitch,
+      deep links natifs, formulaires, galerie photo, multi-langue FR/EN/ES,
+      domaine personnalisé

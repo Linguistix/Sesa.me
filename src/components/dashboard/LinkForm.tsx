@@ -5,15 +5,11 @@ import { useFormStatus } from "react-dom";
 import { createLinkAction, updateLinkAction } from "@/actions/page";
 import type { ActionState } from "@/actions/auth";
 import type { EditorLink } from "./types";
+import { BLOCK_LABELS, BLOCK_TYPES, IMAGE_BLOCK_TYPES, URL_BLOCK_TYPES } from "@/lib/block-types";
 
 const EMPTY: ActionState = {};
 
-const TYPE_OPTIONS = [
-  { value: "LINK", label: "Lien" },
-  { value: "SOCIAL", label: "Réseau social" },
-  { value: "HEADING", label: "Titre de section" },
-  { value: "TEXT", label: "Bloc de texte" },
-] as const;
+const TYPE_OPTIONS = BLOCK_TYPES.map((value) => ({ value, label: BLOCK_LABELS[value] }));
 
 export function LinkForm({
   mode,
@@ -38,7 +34,10 @@ export function LinkForm({
     // `state` identity changes on every action result, which is the signal here.
   }, [state, succeeded, mode, onDone]);
 
-  const needsUrl = type === "LINK" || type === "SOCIAL";
+  const needsUrl = URL_BLOCK_TYPES.includes(type);
+  const needsImages = IMAGE_BLOCK_TYPES.includes(type);
+  // An image block may carry a destination, but does not require one.
+  const optionalUrl = type === "IMAGE";
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-3">
@@ -78,19 +77,49 @@ export function LinkForm({
         </Field>
       </div>
 
-      {needsUrl ? (
-        <Field label="URL" error={state.fieldErrors?.url}>
+      {needsUrl || optionalUrl ? (
+        <Field
+          label="URL"
+          error={state.fieldErrors?.url}
+          hint={optionalUrl ? "facultatif" : undefined}
+        >
           <input
             name="url"
             type="url"
             defaultValue={link?.url ?? ""}
-            placeholder="https://…"
+            placeholder={type === "EMBED" ? "https://open.spotify.com/track/…" : "https://…"}
             className={inputClass}
             aria-invalid={Boolean(state.fieldErrors?.url)}
           />
         </Field>
       ) : (
         <input type="hidden" name="url" value="" />
+      )}
+
+      {type === "EMBED" ? (
+        <p className="text-xs text-neutral-500">
+          Fournisseurs reconnus : Spotify, Apple Music, SoundCloud, YouTube, Twitch. Un autre
+          lien reste affiché comme un bouton classique.
+        </p>
+      ) : null}
+
+      {needsImages ? (
+        <Field
+          label={type === "GALLERY" ? "Images de la galerie" : "Image"}
+          error={state.fieldErrors?.images}
+          hint="une URL par ligne"
+        >
+          <textarea
+            name="images"
+            defaultValue={(link?.images ?? []).join("\n")}
+            rows={type === "GALLERY" ? 4 : 2}
+            placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"}
+            className={inputClass}
+            aria-invalid={Boolean(state.fieldErrors?.images)}
+          />
+        </Field>
+      ) : (
+        <input type="hidden" name="images" value="" />
       )}
 
       {type === "TEXT" ? (

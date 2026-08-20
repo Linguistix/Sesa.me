@@ -18,6 +18,8 @@ import {
   updateLink,
 } from "@/server/links";
 import { themeSchema } from "@/lib/theme/schema";
+import { createForm } from "@/server/forms";
+import { DEFAULT_FORM_FIELDS } from "@/lib/forms";
 import { findPreset } from "@/lib/theme/presets";
 import type { ActionState } from "./auth";
 
@@ -59,8 +61,16 @@ export async function updateProfileAction(
     return { fieldErrors: { slug: "Ce lien est déjà pris." } };
   }
 
-  const ok = await updatePageProfile(page.id, userId, parsed.data);
-  if (!ok) return { error: "Mise à jour impossible." };
+  const outcome = await updatePageProfile(page.id, userId, parsed.data);
+
+  if (outcome === "ANIMATED_AVATAR_REQUIRES_PRO") {
+    return {
+      fieldErrors: {
+        avatarUrl: "Les avatars animés (GIF, WebP) font partie du plan Pro.",
+      },
+    };
+  }
+  if (outcome !== true) return { error: "Mise à jour impossible." };
 
   await revalidatePageRoutes(page.slug);
   if (parsed.data.slug !== page.slug) await revalidatePageRoutes(parsed.data.slug);
@@ -81,13 +91,28 @@ export async function createLinkAction(
     url: formData.get("url") || "",
     emoji: formData.get("emoji") || "",
     body: formData.get("body") || "",
+    images: parseImages(formData.get("images")),
     isActive: true,
     password: (formData.get("password") as string) || undefined,
   });
 
   if (!parsed.success) return { fieldErrors: flattenIssues(parsed.error) };
 
-  await createLink(page.id, userId, parsed.data);
+  const created = await createLink(page.id, userId, parsed.data);
+  if (!created) return { error: "Création impossible." };
+
+  // A form block is inert without a form to submit to, so the two are
+  // created together and share a lifetime — deleting the block cascades.
+  if (parsed.data.type === "FORM") {
+    await createForm({
+      pageId: page.id,
+      userId,
+      linkId: created.id,
+      title: parsed.data.title,
+      fields: DEFAULT_FORM_FIELDS,
+    });
+  }
+
   await revalidatePageRoutes(page.slug);
   return {};
 }
@@ -109,6 +134,7 @@ export async function updateLinkAction(
     url: formData.get("url") || "",
     emoji: formData.get("emoji") || "",
     body: formData.get("body") || "",
+    images: parseImages(formData.get("images")),
     isActive: formData.get("isActive") !== "false",
     // A form that does not send the field at all leaves the gate untouched.
     password: rawPassword === null ? undefined : String(rawPassword),
@@ -149,6 +175,7 @@ export async function toggleLinkAction(linkId: string, isActive: boolean): Promi
     url: link.url ?? "",
     emoji: link.emoji ?? "",
     body: link.body ?? "",
+    images: link.images,
     isActive,
     password: undefined,
   });
@@ -185,6 +212,22 @@ export async function applyPresetAction(presetId: string): Promise<ActionState> 
   const preset = findPreset(presetId);
   if (!preset) return { error: "Thème inconnu." };
   return applyThemeAction(preset.theme);
+}
+
+
+/**
+ * Parses the editor's newline-separated image list.
+ *
+ * A textarea is the right control here — creators paste a batch of URLs from
+ * their host — but it means splitting and pruning before validation.
+ */
+function parseImages(raw: FormDataEntryValue | null): string[] {
+  if (typeof raw !== "string") return [];
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 24);
 }
 
 function flattenIssues(error: z.ZodError): Record<string, string> {

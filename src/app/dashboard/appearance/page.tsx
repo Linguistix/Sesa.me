@@ -36,6 +36,7 @@ export default async function AppearancePage() {
           bio: page.bio,
           avatarUrl: page.avatarUrl,
           showBranding: true,
+          locale: "fr",
           links: page.links
             .filter((l) => l.isActive)
             .map((l) => ({
@@ -46,6 +47,7 @@ export default async function AppearancePage() {
               emoji: l.emoji,
               iconUrl: l.iconUrl,
               body: l.body,
+              images: l.images,
               isLocked: l.passwordHash !== null,
             })),
         }}

@@ -1,7 +1,42 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { THEME_PRESETS } from "@/lib/theme/presets";
+import { slugForHostname } from "@/server/domains";
+import { baseUrl } from "@/lib/urls";
+import { PublicPageView } from "@/components/public/PublicPageView";
 
-export default function LandingPage() {
+/**
+ * The root route serves two things.
+ *
+ * Under the app's own domain it is the marketing page. Under a *verified*
+ * custom domain it is that domain's page — resolving here rather than in
+ * middleware keeps the lookup in the Node runtime, where Prisma runs.
+ *
+ * Unverified domains deliberately fall through to the landing page: serving a
+ * page from a hostname nobody proved they own is exactly what verification
+ * exists to prevent.
+ */
+export default async function RootRoute() {
+  const host = (await headers()).get("host");
+  const ownHost = safeHost(baseUrl());
+
+  if (host && host !== ownHost) {
+    const slug = await slugForHostname(host.split(":")[0]!);
+    if (slug) return <PublicPageView slug={slug} />;
+  }
+
+  return <LandingPage />;
+}
+
+function safeHost(url: string): string | null {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
+function LandingPage() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-5">
       <header className="flex h-16 items-center justify-between">
