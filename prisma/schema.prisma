@@ -1,0 +1,132 @@
+// Sesame — link-in-bio platform
+// Phase 1 (MVP): users, pages, links, themes.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Plan {
+  FREE
+  PRO
+}
+
+/// A registered creator.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  image        String?
+  plan         Plan     @default(FREE)
+  locale       String   @default("fr")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  pages    Page[]
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+/// OAuth provider account linked to a user (Auth.js).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+/// Database-backed session (Auth.js).
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Email verification / password reset tokens (Auth.js).
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+/// A public link-in-bio page. One page per slug.
+model Page {
+  id          String   @id @default(cuid())
+  userId      String
+  slug        String   @unique
+  displayName String
+  bio         String?  @db.Text
+  avatarUrl   String?
+  /// Serialized Theme object — validated against the theme schema before write.
+  themeJson   Json
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links Link[]
+
+  @@index([userId])
+  @@map("pages")
+}
+
+enum LinkType {
+  LINK
+  HEADING
+  TEXT
+  SOCIAL
+}
+
+/// A block on a page. `position` orders blocks ascending.
+model Link {
+  id           String   @id @default(cuid())
+  pageId       String
+  type         LinkType @default(LINK)
+  title        String
+  url          String?
+  emoji        String?
+  iconUrl      String?
+  /// Free-text body for TEXT blocks.
+  body         String?  @db.Text
+  position     Int
+  isActive     Boolean  @default(true)
+  /// bcrypt hash — when set, the destination is gated behind a password.
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, position])
+  @@map("links")
+}
