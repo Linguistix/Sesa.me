@@ -46,8 +46,9 @@ export function LinkList({ links }: { links: EditorLink[] }) {
     },
   );
 
-  const [, startTransition] = useTransition();
+  const [isSaving, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   const sensors = useSensors(
     // A small activation distance keeps a click on "Modifier" from starting a drag.
@@ -68,6 +69,7 @@ export function LinkList({ links }: { links: EditorLink[] }) {
     startTransition(async () => {
       setOptimisticOrder(orderedIds);
       await reorderLinksAction(orderedIds);
+      setSavedAt(Date.now());
     });
   }
 
@@ -80,29 +82,43 @@ export function LinkList({ links }: { links: EditorLink[] }) {
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={optimisticLinks.map((l) => l.id)}
-        strategy={verticalListSortingStrategy}
+    <>
+      {/* Reordering saves in the background, so the list says so — otherwise a
+          user who drags and immediately navigates away cannot tell whether the
+          new order was kept. */}
+      <p
+        role="status"
+        aria-live="polite"
+        data-reorder-state={isSaving ? "saving" : savedAt ? "saved" : "idle"}
+        className="mb-2 h-4 text-xs text-neutral-500"
       >
-        <ul aria-label="Blocs de la page" className="flex flex-col gap-2">
-          {optimisticLinks.map((link) => (
-            <SortableRow
-              key={link.id}
-              link={link}
-              isEditing={editingId === link.id}
-              onEdit={() => setEditingId(editingId === link.id ? null : link.id)}
-              onDone={() => setEditingId(null)}
-            />
-          ))}
-        </ul>
-      </SortableContext>
-    </DndContext>
+        {isSaving ? "Enregistrement de l’ordre…" : savedAt ? "Ordre enregistré." : ""}
+      </p>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={optimisticLinks.map((l) => l.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul aria-label="Blocs de la page" className="flex flex-col gap-2">
+            {optimisticLinks.map((link) => (
+              <SortableRow
+                key={link.id}
+                link={link}
+                isEditing={editingId === link.id}
+                onEdit={() => setEditingId(editingId === link.id ? null : link.id)}
+                onDone={() => setEditingId(null)}
+              />
+            ))}
+          </ul>
+        </SortableContext>
+      </DndContext>
+    </>
   );
 }
 

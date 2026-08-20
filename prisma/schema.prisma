@@ -27,9 +27,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  pages    Page[]
-  accounts Account[]
-  sessions Session[]
+  pages        Page[]
+  accounts     Account[]
+  sessions     Session[]
+  subscription Subscription?
 
   @@map("users")
 }
@@ -93,8 +94,10 @@ model Page {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  links Link[]
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links      Link[]
+  events     AnalyticsEvent[]
+  shortLinks ShortLink[]
 
   @@index([userId])
   @@map("pages")
@@ -125,8 +128,97 @@ model Link {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page       Page             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  events     AnalyticsEvent[]
+  shortLinks ShortLink[]
 
   @@index([pageId, position])
   @@map("links")
+}
+
+// --- Phase 2: analytics, short links, subscriptions ------------------------
+
+enum EventType {
+  PAGE_VIEW
+  LINK_CLICK
+}
+
+/// A single analytics event.
+///
+/// Deliberately append-only and denormalised: writes are on the hot path of
+/// every public page view, so they must never wait on a join or an update.
+/// Dashboard figures are aggregated from here with grouped queries, and the
+/// table is a natural candidate for monthly range partitioning on `createdAt`
+/// once volume warrants it (see `docs/analytics.md`).
+model AnalyticsEvent {
+  id        String    @id @default(cuid())
+  pageId    String
+  linkId    String?
+  type      EventType
+  createdAt DateTime  @default(now())
+
+  /// Referrer host only ("instagram.com"), never the full referring URL.
+  source  String?
+  /// ISO 3166-1 alpha-2, from the CDN's geo header.
+  country String?
+  /// "mobile" | "tablet" | "desktop"
+  device  String?
+
+  /// Rotating daily hash of IP + user agent. Lets us count unique visitors
+  /// without ever storing an IP address, and it stops being linkable to the
+  /// same person after 24h. See `src/lib/analytics/visitor.ts`.
+  visitorHash String?
+
+  page Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  link Link? @relation(fields: [linkId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt])
+  @@index([linkId, createdAt])
+  @@index([pageId, type, createdAt])
+  @@map("analytics_events")
+}
+
+/// A short URL served from `/u/<code>`.
+model ShortLink {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  pageId    String
+  linkId    String?
+  targetUrl String
+  createdAt DateTime @default(now())
+
+  page Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  link Link? @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@map("short_links")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+/// Mirror of the Stripe subscription that grants a user the Pro plan.
+///
+/// `User.plan` stays the single source of truth the rest of the app reads;
+/// this row records why it has that value and lets the webhook be idempotent.
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  stripeCustomerId     String             @unique
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus
+  plan                 Plan               @default(PRO)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
 }

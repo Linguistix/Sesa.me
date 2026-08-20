@@ -18,7 +18,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <nav aria-label="Navigation principale" className="flex items-center gap-1 text-sm">
             <NavLink href="/dashboard">Éditeur</NavLink>
             <NavLink href="/dashboard/appearance">Apparence</NavLink>
+            <NavLink href="/dashboard/analytics">Stats</NavLink>
             <NavLink href="/dashboard/share">Partager</NavLink>
+            <NavLink href="/dashboard/billing">Abonnement</NavLink>
+            <NavLink href="/dashboard/settings">Réglages</NavLink>
           </nav>
 
           <form action={signOutAction}>

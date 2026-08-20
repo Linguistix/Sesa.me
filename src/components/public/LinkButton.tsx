@@ -72,6 +72,7 @@ export function LinkButton({ link, shadow }: { link: RenderableLink; shadow: boo
         style={style}
         aria-haspopup="dialog"
         aria-label={`${link.title} — protégé par mot de passe`}
+        data-link-id={link.id}
       >
         {label}
       </button>

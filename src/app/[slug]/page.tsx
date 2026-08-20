@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getPublicPage } from "@/server/pages";
 import { themeFontHref } from "@/lib/theme/render";
 import { PageRenderer } from "@/components/public/PageRenderer";
+import { AnalyticsTracker } from "@/components/public/AnalyticsTracker";
 
 /**
  * Public pages are statically rendered and revalidated, so a cache hit serves
@@ -76,6 +77,8 @@ export default async function PublicPage({ params }: Props) {
           showBranding: page.plan !== "PRO",
         }}
       />
+
+      <AnalyticsTracker pageId={page.id} />
     </>
   );
 }

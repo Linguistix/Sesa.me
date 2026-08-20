@@ -89,7 +89,9 @@ test("reordering blocks with the keyboard persists and reorders the public page"
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Space");
 
-  await page.waitForTimeout(1500);
+  // Wait for the save to actually land rather than guessing at a duration —
+  // the list reports its own state.
+  await expect(page.locator('[data-reorder-state="saved"]')).toBeVisible();
 
   await page.goto(`/${slug}`);
   const links = page.getByRole("navigation").getByRole("link");
