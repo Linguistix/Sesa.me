@@ -17,15 +17,59 @@ qui rassemble ses liens, sa musique, sa boutique et ses formulaires.
 
 ## Démarrage
 
+**Prérequis** : Node 20+ et un PostgreSQL accessible. Rien d'autre — Redis,
+Stripe, le stockage objet et l'IA sont tous optionnels.
+
 ```bash
 npm install
-cp .env.example .env          # renseigner DATABASE_URL et AUTH_SECRET
-npx prisma migrate deploy     # ou `npm run db:migrate` en développement
-npm run db:seed               # compte de démo : demo@sesa.me / demo1234
+cp .env.example .env
+```
+
+Renseignez ensuite **trois variables** dans `.env` — les seules obligatoires :
+
+```bash
+DATABASE_URL="postgresql://user:motdepasse@localhost:5432/sesame"
+AUTH_SECRET="…"                              # openssl rand -base64 32
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+Puis :
+
+```bash
+npx prisma migrate deploy     # crée le schéma
+npm run db:seed               # compte de démo
 npm run dev
 ```
 
-La page de démo est alors sur <http://localhost:3000/camille>.
+### La démo
+
+| | |
+|---|---|
+| Page publique | <http://localhost:3000/camille> |
+| Connexion | <http://localhost:3000/login> |
+| Identifiants | `demo@sesa.me` / `demo1234` |
+
+La page de démo contient un exemple de chaque type de bloc : liens, titre de
+section, texte, lecteur Spotify intégré, galerie photo, formulaire de contact
+et un lien protégé par mot de passe (`secret123`).
+
+Sans les variables optionnelles, les fonctionnalités concernées s'affichent
+comme non configurées au lieu d'échouer : le panneau « Design IA », la page
+Abonnement et la page Comptes connectés le signalent explicitement. Tout le
+reste — éditeur, glisser-déposer, thèmes préconçus, QR code, statistiques,
+formulaires — fonctionne.
+
+<details>
+<summary>Pas de PostgreSQL sous la main ?</summary>
+
+```bash
+docker run -d --name sesame-db -p 5432:5432 \
+  -e POSTGRES_USER=sesame -e POSTGRES_PASSWORD=sesame -e POSTGRES_DB=sesame \
+  postgres:16
+
+# DATABASE_URL="postgresql://sesame:sesame@localhost:5432/sesame"
+```
+</details>
 
 ### Variables d'environnement
 
