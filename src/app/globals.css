@@ -97,8 +97,18 @@
   --text-5xl: 3.75rem;
   --text-5xl--line-height: 3.9rem;
 
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  /*
+     Rubik, self-hosted by `next/font` (see `app/layout.tsx`), which sets
+     `--font-rubik`. The fallbacks matter for the first paint and for the case
+     where the font files fail to load: they are system faces, so nothing here
+     depends on a network request.
+
+     There used to be a `--font-display` serif token beside this one. It was
+     never referenced — the public page's display face comes from the
+     creator's own theme via `--sesame-font-display`, a different variable —
+     so it is gone rather than sitting here looking load-bearing.
+  */
+  --font-sans: var(--font-rubik), system-ui, -apple-system, "Segoe UI", sans-serif;
 
   /* --- Radii --------------------------------------------------------------
      Nested corners need decreasing radii or the inner shape looks pinched. */
@@ -139,11 +149,21 @@
   --app-hairline-strong: rgb(255 255 255 / 0.12);
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
+/*
+  There is deliberately no `overflow-x: hidden` here.
+
+  It reads as a harmless guard against a stray horizontal scrollbar, and it is
+  neither harmless nor a guard. `overflow-x: hidden` forces the computed
+  `overflow-y` to `auto`, which turns `html` and `body` into scroll containers
+  — and a scroll container between a sticky element and the viewport is what
+  `position: sticky` is measured against. Every sticky thing in the app was
+  quietly not sticking. It also hid the layout bugs it appeared to fix: the
+  dashboard's nav rail was 50px wider than a phone screen and the last tab was
+  unreachable, with no scrollbar to say so.
+
+  Over-wide content is a bug to fix at the element, not to clip at the root.
+  `e2e/editor-layout.spec.ts` measures for it.
+*/
 
 body {
   font-family: var(--font-sans);
@@ -187,6 +207,44 @@ body {
 .app-scope * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-ink-700) transparent;
+}
+
+/*
+  A strip that scrolls sideways without showing a bar, fading at whichever edge
+  has more content behind it.
+
+  The fade is the whole point. A row that is wider than the screen can be
+  panned, but nothing about it says so — on a phone the dashboard's last nav
+  tab sat just past the edge and looked like the end of the list. The scroll
+  container gives the gesture; the mask is what tells you the gesture is
+  there. `scroll-snap` keeps a tab from coming to rest half-cut.
+*/
+.rail {
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  /* Snap alignment ignores the container's own padding, so without this the
+     first item snaps flush to the edge — cancelling the inline padding and
+     landing the active tab inside the fade, greyed out on every load. */
+  scroll-padding-inline: var(--rail-fade, 1.25rem);
+  -webkit-overflow-scrolling: touch;
+  /* Transparent at the edges, opaque across the middle: with `mask-composite`
+     unavailable everywhere, one gradient does both ends. */
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--rail-fade, 1.25rem),
+    #000 calc(100% - var(--rail-fade, 1.25rem)),
+    transparent 100%
+  );
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.rail > * {
+  scroll-snap-align: start;
 }
 
 @media (prefers-reduced-motion: reduce) {

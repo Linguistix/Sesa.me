@@ -48,7 +48,17 @@ export function ThemePicker({
   }
 
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+    <div
+      /*
+        Flex on mobile, grid from `lg`. Not a style preference: a grid item's
+        containing block for sticky positioning is its own grid area, so a
+        sticky preview would unstick the moment its row scrolled by. A flex
+        item is bounded by the flex container's content box instead, which
+        spans the whole column — which is what lets the preview follow the
+        controls down.
+      */
+      className="flex flex-col items-start gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] xl:gap-12"
+    >
       <div className="flex min-w-0 flex-col gap-10">
         <AiDesigner
           configured={ai.configured}
@@ -376,7 +386,18 @@ export function ThemePicker({
         </section>
       </div>
 
-      <aside className="lg:sticky lg:top-32">
+      {/*
+        The preview leads on a phone and stays put while the controls scroll
+        under it. Stacked normally it sat 3.2 screens below the colour pickers,
+        so every change was made blind — on the one screen whose entire purpose
+        is seeing the change.
+
+        `top-[9.5rem]` clears the dashboard's own sticky header, which is 140px
+        on mobile (title row + nav rail + URL bar). `e2e/editor-layout.spec.ts`
+        asserts the preview is actually on screen alongside the controls, so a
+        header that grows a row cannot quietly push it back out of view.
+      */}
+      <aside className="order-first w-full sticky top-[9.5rem] z-20 lg:order-none lg:w-auto -mx-5 mb-2 border-b border-white/8 bg-ink-950 px-5 py-3 shadow-[0_12px_24px_-12px_rgb(0_0_0/0.9)] lg:top-32 lg:z-auto lg:mx-0 lg:mb-0 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:shadow-none">
         <PhonePreview label="Aperçu en direct">
           <PageRenderer preview page={{ ...previewPage, theme }} />
         </PhonePreview>

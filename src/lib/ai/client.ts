@@ -13,7 +13,24 @@ export function getAnthropic(): Anthropic | null {
   if (cached !== undefined) return cached;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  cached = apiKey ? new Anthropic({ apiKey }) : null;
+  if (!apiKey) {
+    cached = null;
+    return cached;
+  }
+
+  /*
+    An identity-linked API key is scoped to a person rather than to one
+    workspace, so the API cannot infer which workspace a request bills and
+    audits against: every endpoint returns 400 until the id is sent. Ordinary
+    keys carry their workspace already and ignore the header, so setting it
+    unconditionally when present is safe for both kinds.
+  */
+  const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID?.trim();
+
+  cached = new Anthropic({
+    apiKey,
+    ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+  });
   return cached;
 }
 

@@ -31,7 +31,14 @@ export function PhonePreview({
           }}
         />
 
-        <div className="relative h-[652px] w-[322px] rounded-[2.5rem] bg-ink-800 p-[3px] shadow-float ring-1 ring-inset ring-white/12">
+        {/*
+          On a phone the frame is a window onto the page rather than a whole
+          device: full height would fill the screen and leave no room for the
+          controls it is supposed to be previewing. The width is unchanged so
+          the page inside still lays out at its real measure — only how much of
+          it you see at once changes.
+        */}
+        <div className="relative h-[34vh] max-h-[652px] w-[322px] rounded-[2.5rem] bg-ink-800 p-[3px] shadow-float ring-1 ring-inset ring-white/12 lg:h-[652px]">
           <div className="relative h-full w-full overflow-hidden rounded-[2.35rem] bg-ink-950">
             {/* Status-bar notch, so the frame reads as a phone at a glance. */}
             <div

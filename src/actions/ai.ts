@@ -57,6 +57,10 @@ export async function generateThemeAction(description: string): Promise<Generate
         };
       case "unavailable":
         return { error: "La génération par IA n'est pas configurée sur cette instance." };
+      case "misconfigured":
+        // Surfaced rather than swallowed: this is a deployment problem, and
+        // retrying it forever is the one thing that cannot help.
+        return { error: `L'API a refusé la requête : ${outcome.detail}` };
       case "failed":
         return { error: "La génération a échoué. Réessayez dans un instant." };
     }

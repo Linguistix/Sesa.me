@@ -104,6 +104,23 @@ prompt demande de ne pas la formuler en pourcentage.
 Le résumé est un ornement : s'il échoue ou si la clé API est absente, le
 tableau de bord affiche ses chiffres normalement.
 
+## Clés liées à une identité
+
+Une clé API **liée à une identité** (rattachée à une personne plutôt qu'à un
+espace de travail) ne suffit pas à elle seule : l'API ne peut pas déduire quel
+espace de travail facturer et auditer, et renvoie un `400` sur *tous* les
+endpoints tant que l'en-tête `anthropic-workspace-id` est absent.
+
+Renseignez alors `ANTHROPIC_WORKSPACE_ID` en plus de la clé — `getAnthropic()`
+l'ajoute comme en-tête par défaut. Une clé normale porte déjà son espace de
+travail et ignore l'en-tête, donc le renseigner est sans risque dans les deux
+cas.
+
+Une erreur `4xx` autre qu'un `429` est traitée comme un problème de
+configuration, pas comme un incident passager : le message de l'API est remonté
+tel quel dans l'interface. Dire « réessayez dans un instant » pour une clé mal
+configurée fait tourner en rond.
+
 ## Sans clé API
 
 `ANTHROPIC_API_KEY` est optionnelle. Sans elle, `getAnthropic()` renvoie `null`,

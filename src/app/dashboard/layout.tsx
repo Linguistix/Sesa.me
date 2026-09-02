@@ -58,9 +58,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </div>
         </div>
 
+        {/*
+          The mobile nav bleeds to both screen edges so a tab can sit flush
+          against them while scrolling, and the fade has somewhere to land.
+          Five tabs need 462px and a phone gives 412 — without the rail the
+          last one is clipped away with no way to reach it.
+        */}
         {page ? (
-          <div className="mx-auto flex max-w-7xl items-center gap-3 px-5 pb-2.5 md:hidden">
-            <NavTabs />
+          <div className="mx-auto max-w-7xl pb-2.5 md:hidden">
+            <div className="rail px-5">
+              <NavTabs />
+            </div>
           </div>
         ) : null}
 

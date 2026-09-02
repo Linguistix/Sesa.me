@@ -36,9 +36,9 @@ export function NavTabs() {
   return (
     <nav aria-label="Navigation principale" className="flex items-center gap-0.5">
       {[...PRIMARY, ...SECONDARY].map((item, index) => (
-        <span key={item.href} className="flex items-center">
+        <span key={item.href} className="flex shrink-0 items-center">
           {index === PRIMARY.length ? (
-            <span aria-hidden className="mx-2 h-4 w-px bg-white/10" />
+            <span aria-hidden className="mx-1.5 h-4 w-px bg-white/10 md:mx-2" />
           ) : null}
           <NavTab href={item.href} label={item.label} pathname={pathname} />
         </span>
@@ -64,7 +64,7 @@ function NavTab({
       href={href}
       aria-current={active ? "page" : undefined}
       className={[
-        "relative rounded-md px-3 py-1.5 text-base transition-colors duration-[120ms]",
+        "relative shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-base transition-colors duration-[120ms] md:px-3",
         active ? "text-ink-50" : "text-ink-400 hover:bg-white/5 hover:text-ink-100",
       ].join(" ")}
     >
@@ -72,7 +72,7 @@ function NavTab({
       {active ? (
         <span
           aria-hidden
-          className="absolute inset-x-3 -bottom-[13px] h-px bg-accent-400"
+          className="absolute inset-x-2.5 -bottom-1 h-px bg-accent-400 md:inset-x-3 md:-bottom-[13px]"
         />
       ) : null}
     </Link>

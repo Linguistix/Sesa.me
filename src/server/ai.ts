@@ -49,6 +49,7 @@ export type GenerateOutcome =
   | { ok: false; reason: "quota"; quota: QuotaState }
   | { ok: false; reason: "burst"; retryAt: Date }
   | { ok: false; reason: "unavailable" }
+  | { ok: false; reason: "misconfigured"; detail: string }
   | { ok: false; reason: "failed" };
 
 /**
@@ -103,9 +104,31 @@ export async function generateThemeForUser(
     });
 
     console.error("[ai] theme generation failed", error);
+
+    /*
+      A 4xx that is not rate limiting is the operator's problem, not the
+      creator's: a bad key, a missing workspace id, a model the account cannot
+      reach. Telling them to "retry in a moment" sends them round in circles,
+      so the API's own message is surfaced instead — it names what is wrong.
+      429 stays in the transient bucket, where retrying is exactly right.
+    */
+    const status = (error as { status?: number } | null)?.status;
+    if (typeof status === "number" && status >= 400 && status < 500 && status !== 429) {
+      return { ok: false, reason: "misconfigured", detail: apiErrorMessage(error) };
+    }
+
     return { ok: false, reason: "failed" };
   }
 }
+
+/** The API's own explanation, when it sent one — it names what is misconfigured. */
+function apiErrorMessage(error: unknown): string {
+  const message = (error as { error?: { error?: { message?: string } } } | null)?.error?.error
+    ?.message;
+  if (typeof message === "string" && message.length > 0) return message;
+  return error instanceof Error ? error.message : String(error);
+}
+
 
 /**
  * Produces the natural-language weekly summary.
