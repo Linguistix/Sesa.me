@@ -18,7 +18,8 @@ qui rassemble ses liens, sa musique, sa boutique et ses formulaires.
 ## Démarrage
 
 **Prérequis** : Node 20+ et un PostgreSQL accessible. Rien d'autre — Redis,
-Stripe, le stockage objet et l'IA sont tous optionnels.
+Stripe, le stockage objet et l'IA sont tous optionnels, et le build ne nécessite
+aucun accès réseau (la police d'interface est versionnée dans le dépôt).
 
 ```bash
 npm install
@@ -215,7 +216,7 @@ fonctionne ; les fonctionnalités concernées se signalent comme non configurée
 | Intégration | Variables | Sans elle |
 |---|---|---|
 | **Stripe** | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET` | la page Abonnement indique que la facturation n'est pas configurée |
-| **IA** | `ANTHROPIC_API_KEY` | pas de génération de thème ni de résumé hebdomadaire ; l'éditeur manuel et les thèmes préconçus fonctionnent |
+| **IA** | `ANTHROPIC_API_KEY` (+ `ANTHROPIC_WORKSPACE_ID` pour une clé liée à une identité — voir [`docs/ai-design.md`](docs/ai-design.md)) | pas de génération de thème ni de résumé hebdomadaire ; l'éditeur manuel et les thèmes préconçus fonctionnent |
 | **Stockage** | `S3_*` — voir [`docs/storage.md`](docs/storage.md) | les champs d'image acceptent une URL au lieu d'un téléversement |
 | **Redis** | `REDIS_URL` | limites de débit et cache par processus au lieu d'être partagés |
 | **OAuth créateur** | `SPOTIFY_*`, `GOOGLE_*` — voir [`docs/connections.md`](docs/connections.md) | pas de bloc synchronisé automatiquement |
