@@ -37,7 +37,29 @@ export function EmbedBlock({ url, title }: { url: string; title: string }) {
   const embed = withParentHost(detected, displayHost());
 
   return (
-    <div className="w-full overflow-hidden" style={{ borderRadius: "var(--sesame-radius)" }}>
+    /*
+      The wrapper reserves the player's height and paints it in the theme's own
+      surface colour before the iframe arrives. Without it a third-party player
+      flashes white on a dark page while it loads, and shows browser
+      broken-frame chrome if it never does — both of which look like the
+      creator's page is broken rather than the network being slow.
+    */
+    <div
+      className="relative w-full overflow-hidden"
+      style={{
+        borderRadius: "var(--sesame-radius)",
+        height: embed.height,
+        background: "var(--sesame-surface)",
+      }}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-0 grid place-items-center text-xs"
+        style={{ color: "var(--sesame-muted)" }}
+      >
+        {embed.title}
+      </span>
+
       <iframe
         src={embed.src}
         title={title || embed.title}
@@ -47,8 +69,8 @@ export function EmbedBlock({ url, title }: { url: string; title: string }) {
         // The player is third-party; deny it everything it does not need.
         sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox"
         referrerPolicy="strict-origin-when-cross-origin"
-        className="w-full border-0"
-        style={{ height: embed.height }}
+        className="relative w-full border-0"
+        style={{ height: embed.height, colorScheme: "normal" }}
       />
     </div>
   );

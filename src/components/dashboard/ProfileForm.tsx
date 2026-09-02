@@ -4,11 +4,13 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { updateProfileAction } from "@/actions/page";
 import type { ActionState } from "@/actions/auth";
-import { Field, inputClass } from "./LinkForm";
-import { displayHost } from "@/lib/urls";
+import { Field, TextArea, TextInput, inputClass } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 import { ImageUploader } from "./ImageUploader";
+import { displayHost } from "@/lib/urls";
 
 const EMPTY: ActionState = {};
+const BIO_MAX = 280;
 
 export function ProfileForm({
   page,
@@ -19,67 +21,56 @@ export function ProfileForm({
 }) {
   const [state, formAction] = useActionState(updateProfileAction, EMPTY);
   const [avatarUrl, setAvatarUrl] = useState(page.avatarUrl ?? "");
+  const [bio, setBio] = useState(page.bio ?? "");
   const saved = state !== EMPTY && !state.error && !state.fieldErrors;
 
   return (
-    <form action={formAction} className="flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <Field label="Nom affiché" error={state.fieldErrors?.displayName} className="flex-1">
-          <input
-            name="displayName"
-            defaultValue={page.displayName}
-            required
-            maxLength={60}
-            className={inputClass}
-          />
-        </Field>
-
-        <Field label="Votre lien" error={state.fieldErrors?.slug} className="flex-1">
-          <div className="flex items-center rounded-lg border border-white/15 bg-black/25 focus-within:border-indigo-400">
-            <span className="pl-3 text-sm text-neutral-500">{displayHost()}/</span>
-            <input
-              name="slug"
-              defaultValue={page.slug}
-              required
-              maxLength={32}
-              pattern="[a-z0-9\-]+"
-              className="w-full bg-transparent px-1 py-2 text-sm text-neutral-100 outline-none"
+    <form action={formAction} className="flex flex-col gap-5">
+      {/*
+        The avatar leads: it is the largest thing on the finished page, so it
+        should be the largest thing in the form that produces it.
+      */}
+      <div className="flex items-start gap-4">
+        <div className="relative shrink-0">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt=""
+              aria-hidden
+              width={64}
+              height={64}
+              className="h-16 w-16 rounded-full object-cover ring-1 ring-inset ring-white/10"
             />
-          </div>
-        </Field>
-      </div>
+          ) : (
+            <div
+              aria-hidden
+              className="grid h-16 w-16 place-items-center rounded-full bg-ink-800 text-xl font-semibold text-ink-500 ring-1 ring-inset ring-white/8"
+            >
+              {page.displayName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+        </div>
 
-      <Field label="Bio" error={state.fieldErrors?.bio} hint="280 caractères max">
-        <textarea name="bio" defaultValue={page.bio ?? ""} rows={2} maxLength={280} className={inputClass} />
-      </Field>
-
-      <Field
-        label="Avatar"
-        error={state.fieldErrors?.avatarUrl}
-        hint={storageEnabled ? "téléversez une image ou collez une URL" : "URL, facultatif"}
-      >
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                aria-hidden
-                width={40}
-                height={40}
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <Field
+            label="Avatar"
+            hint={storageEnabled ? undefined : "URL"}
+            error={state.fieldErrors?.avatarUrl}
+          >
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                name="avatarUrl"
+                type="url"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                placeholder="https://…/photo.jpg"
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
               />
-            ) : null}
-            <input
-              name="avatarUrl"
-              type="url"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://…/photo.jpg"
-              className={inputClass}
-            />
-          </div>
+            )}
+          </Field>
 
           {storageEnabled ? (
             <ImageUploader
@@ -91,10 +82,67 @@ export function ProfileForm({
             />
           ) : null}
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Nom affiché" error={state.fieldErrors?.displayName}>
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              name="displayName"
+              defaultValue={page.displayName}
+              required
+              maxLength={60}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
+        </Field>
+
+        <Field label="Votre lien" error={state.fieldErrors?.slug}>
+          {({ id, describedBy, invalid }) => (
+            <div
+              className={`${inputClass} flex h-9 items-center gap-0 px-0 focus-within:ring-2 focus-within:ring-accent-500`}
+            >
+              <span className="pl-3 text-ink-500">{displayHost()}/</span>
+              <input
+                id={id}
+                name="slug"
+                defaultValue={page.slug}
+                required
+                maxLength={32}
+                pattern="[a-z0-9\-]+"
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                className="min-w-0 flex-1 bg-transparent py-2 pr-3 text-base text-ink-50 outline-none"
+              />
+            </div>
+          )}
+        </Field>
+      </div>
+
+      <Field
+        label="Bio"
+        hint={`${bio.length}/${BIO_MAX}`}
+        error={state.fieldErrors?.bio}
+      >
+        {({ id, describedBy, invalid }) => (
+          <TextArea
+            id={id}
+            name="bio"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={2}
+            maxLength={BIO_MAX}
+            placeholder="Une phrase sur vous."
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
+          />
+        )}
       </Field>
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-critical-400">
           {state.error}
         </p>
       ) : null}
@@ -102,8 +150,11 @@ export function ProfileForm({
       <div className="flex items-center gap-3">
         <SaveButton />
         {saved ? (
-          <span role="status" className="text-sm text-emerald-400">
-            Enregistré.
+          <span role="status" className="flex items-center gap-1.5 text-sm text-positive-400">
+            <svg viewBox="0 0 12 12" aria-hidden className="h-3.5 w-3.5">
+              <path d="m2.5 6.5 2.5 2.5 4.5-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Enregistré
           </span>
         ) : null}
       </div>
@@ -114,12 +165,8 @@ export function ProfileForm({
 function SaveButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
-    >
+    <Button type="submit" variant="primary" disabled={pending}>
       {pending ? "Enregistrement…" : "Enregistrer"}
-    </button>
+    </Button>
   );
 }

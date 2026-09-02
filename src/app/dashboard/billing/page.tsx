@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { getSubscription } from "@/server/billing";
 import { isBillingConfigured } from "@/lib/stripe";
 import { PLAN_LIMITS } from "@/lib/plans";
+import { PageHeader, PageBody, Panel, Badge } from "@/components/ui/Panel";
+import { Button } from "@/components/ui/Button";
 import { openPortalAction, startCheckoutAction } from "@/actions/billing";
 
 export const metadata = { title: "Abonnement" };
@@ -29,13 +31,16 @@ export default async function BillingPage({
   const isPro = user?.plan === "PRO";
 
   return (
-    <>
-      <h1 className="mb-6 text-lg font-semibold">Abonnement</h1>
+    <PageBody>
+      <PageHeader
+        title="Abonnement"
+        description="Deux plans. Vous pouvez changer ou arrêter à tout moment."
+      />
 
       {status && STATUS_MESSAGE[status] ? (
         <p
           role="status"
-          className="mb-6 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-neutral-200"
+          className="mb-5 rounded-lg bg-accent-500/[0.07] px-4 py-3 text-sm text-ink-100 ring-1 ring-inset ring-accent-400/25"
         >
           {STATUS_MESSAGE[status]}
         </p>
@@ -82,7 +87,7 @@ export default async function BillingPage({
       </div>
 
       {!configured ? (
-        <p className="mt-6 text-sm text-neutral-500">
+        <p className="mt-6 text-sm text-ink-400">
           Pour activer la facturation, renseignez <code>STRIPE_SECRET_KEY</code>,{" "}
           <code>STRIPE_PRICE_ID</code> et <code>STRIPE_WEBHOOK_SECRET</code> — voir{" "}
           <code>.env.example</code>.
@@ -90,13 +95,13 @@ export default async function BillingPage({
       ) : null}
 
       {subscription?.currentPeriodEnd ? (
-        <p className="mt-6 text-sm text-neutral-500">
+        <p className="mt-6 text-sm text-ink-400">
           {subscription.cancelAtPeriodEnd
             ? `Votre abonnement prend fin le ${formatDate(subscription.currentPeriodEnd)}.`
             : `Prochain renouvellement le ${formatDate(subscription.currentPeriodEnd)}.`}
         </p>
       ) : null}
-    </>
+    </PageBody>
   );
 }
 
@@ -116,48 +121,38 @@ function PlanCard({
   action?: React.ReactNode;
 }) {
   return (
-    <section
-      className={[
-        "flex flex-col rounded-xl border p-5",
-        highlighted ? "border-indigo-500/40 bg-indigo-500/[0.06]" : "border-white/10 bg-white/[0.02]",
-      ].join(" ")}
+    <Panel
+      as="section"
+      className={`flex flex-col p-5 ${highlighted ? "ring-accent-400/30" : ""}`}
     >
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-base font-semibold">{name}</h2>
-        {current ? (
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-neutral-300">
-            Plan actuel
-          </span>
-        ) : null}
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-md font-semibold text-ink-50">{name}</h2>
+        {current ? <Badge>Plan actuel</Badge> : null}
       </div>
 
-      <p className="mt-1 text-2xl font-semibold tracking-tight">{price}</p>
+      <p className="mt-1.5 text-3xl font-semibold tracking-tight text-ink-50">{price}</p>
 
-      <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm text-neutral-300">
+      <ul className="mt-5 flex flex-1 flex-col gap-2.5 text-base text-ink-200">
         {features.map((f) => (
-          <li key={f} className="flex gap-2">
-            <span aria-hidden className="text-indigo-400">
+          <li key={f} className="flex gap-2.5">
+            <span aria-hidden className="mt-0.5 text-accent-400">
               ✓
             </span>
-            {f}
+            <span className="min-w-0">{f}</span>
           </li>
         ))}
       </ul>
 
-      {action ? <div className="mt-5">{action}</div> : null}
-    </section>
+      {action ? <div className="mt-6">{action}</div> : null}
+    </Panel>
   );
 }
 
 function SubmitButton({ children, disabled }: { children: React.ReactNode; disabled?: boolean }) {
   return (
-    <button
-      type="submit"
-      disabled={disabled}
-      className="w-full rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-    >
+    <Button type="submit" variant="primary" disabled={disabled} className="w-full">
       {children}
-    </button>
+    </Button>
   );
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME, THEME_PRESETS } from "../presets";
 import { themeSchema, ALLOWED_FONTS } from "../schema";
 import { auditContrast, sanitizeTheme } from "../sanitize";
+import { contrastRatio } from "../contrast";
 import { themeFontHref, themeToCssVars } from "../render";
 
 describe("theme presets", () => {
@@ -118,4 +119,20 @@ describe("themeFontHref", () => {
     expect(href).toContain("family=Playfair+Display");
     expect(href).not.toContain(" ");
   });
+
+  /*
+    Error text on a public page used to be a fixed `#F87171`. It reads well on
+    a dark theme and vanishes on a light one — the five light presets showed it
+    between 2.45:1 and 2.77:1, so the message telling a visitor their address
+    was rejected was the least legible thing on the page. `themeToCssVars` now
+    repairs it against the page's own background.
+  */
+  it.each(THEME_PRESETS.map((p) => [p.id, p] as const))(
+    "%s renders error text that clears AA against its own background",
+    (_id, preset) => {
+      const { theme } = sanitizeTheme(preset.theme);
+      const critical = themeToCssVars(theme)["--sesame-critical"];
+      expect(contrastRatio(critical, theme.palette.background)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 });

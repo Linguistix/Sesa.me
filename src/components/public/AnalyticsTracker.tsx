@@ -55,9 +55,9 @@ function ConsentBanner({ onDecide }: { onDecide: (value: ConsentValue) => void }
     <div
       role="region"
       aria-label="Consentement aux mesures d'audience"
-      className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-xl border border-white/15 bg-neutral-900/95 p-4 text-left shadow-2xl backdrop-blur"
+      className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-xl border border-white/15 bg-ink-900/95 p-4 text-left shadow-2xl backdrop-blur"
     >
-      <p className="text-sm text-neutral-200">
+      <p className="text-sm text-ink-200">
         Nous mesurons les visites de cette page de façon anonyme, sans cookie ni adresse IP
         conservée.
       </p>
@@ -65,14 +65,14 @@ function ConsentBanner({ onDecide }: { onDecide: (value: ConsentValue) => void }
         <button
           type="button"
           onClick={() => onDecide("granted")}
-          className="flex-1 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-400"
+          className="flex-1 rounded-lg bg-accent-solid px-3 py-2 text-sm font-medium text-white transition hover:bg-accent-solid-hover"
         >
           Accepter
         </button>
         <button
           type="button"
           onClick={() => onDecide("denied")}
-          className="flex-1 rounded-lg border border-white/15 px-3 py-2 text-sm text-neutral-300 transition hover:bg-white/5"
+          className="flex-1 rounded-lg border border-white/15 px-3 py-2 text-sm text-ink-300 transition hover:bg-white/5"
         >
           Refuser
         </button>

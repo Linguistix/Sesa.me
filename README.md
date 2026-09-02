@@ -139,6 +139,9 @@ src/
   components/
     public/            Rendu de la page publique (sans JS superflu)
     dashboard/         Éditeur, glisser-déposer, aperçu en direct
+    ui/                Primitives du chrome — voir docs/design-system.md
+    marketing/         Miniatures de thème de la page d'accueil
+    auth/              Connexion et création de compte
 ```
 
 ### Le contrat de thème
@@ -170,6 +173,7 @@ l'IA — `presets.test.ts` échoue si l'un d'eux descend sous WCAG AA.
 | [`docs/integrations.md`](docs/integrations.md) | Lecteurs, deep linking, formulaires, i18n, domaines |
 | [`docs/connections.md`](docs/connections.md) | OAuth créateur, PKCE, rafraîchissement, blocs synchronisés |
 | [`docs/storage.md`](docs/storage.md) | Téléversement direct, signature, CORS |
+| [`docs/design-system.md`](docs/design-system.md) | Jetons, primitives, invariant de contraste du chrome |
 
 ## Sécurité
 

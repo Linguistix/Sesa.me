@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { type Page } from "@playwright/test";
 
 /** Phase 4: embeds, gallery, forms, i18n, deep links, custom domains. */
 
@@ -35,7 +36,7 @@ test("a Spotify link added as an embed renders a player, not a button", async ({
   await signUp(page, suffix);
 
   const addBlock = page.locator("form").filter({ hasText: "Ajouter le bloc" });
-  await addBlock.getByLabel("Type").selectOption("EMBED");
+  await addBlock.getByRole("button", { name: /Lecteur/ }).click();
   await addBlock.getByLabel("Titre", { exact: true }).fill("Mon single");
   await addBlock
     .getByLabel("URL", { exact: true })
@@ -59,7 +60,7 @@ test("an unrecognised URL in an embed block degrades to a plain link", async ({ 
   await signUp(page, suffix);
 
   const addBlock = page.locator("form").filter({ hasText: "Ajouter le bloc" });
-  await addBlock.getByLabel("Type").selectOption("EMBED");
+  await addBlock.getByRole("button", { name: /Lecteur/ }).click();
   await addBlock.getByLabel("Titre", { exact: true }).fill("Mon site");
   await addBlock.getByLabel("URL", { exact: true }).fill("https://example.com/whatever");
   await addBlock.getByRole("button", { name: "Ajouter le bloc" }).click();

@@ -1,11 +1,142 @@
 @import "tailwindcss";
 
+/*
+  Design tokens.
+
+  Declared in Tailwind's `@theme` so each token generates its utility class —
+  `--color-ink-850` becomes `bg-ink-850`. One definition, no drift between a
+  CSS variable and a hard-coded hex somewhere in a component.
+
+  The guiding idea: the tool's chrome stays quiet so the creator's own page —
+  which is full-colour, and the thing they are actually making — is the only
+  saturated thing on screen. Chrome that competes with the canvas is chrome
+  that makes the product look worse than it is.
+*/
 @theme {
+  /* --- Neutrals -----------------------------------------------------------
+     Very slightly blue rather than pure grey. Neutral greys read clinical at
+     these darknesses; a few degrees of hue makes the surface feel intentional.
+
+     The ramp has two zones and the gap between them is deliberate:
+
+       ink-950 .. ink-700   surfaces, borders, hairlines. Never text.
+       ink-600 .. ink-50    text only. Every rung here clears WCAG AA (4.5:1)
+                            against the lightest surface text ever sits on
+                            (ink-750 #22222d), so no combination of a text
+                            token and a surface token can fail.
+
+     That invariant is what lets a component pick `text-ink-600` for a caption
+     without stopping to check the surface underneath it. `e2e/contrast.spec.ts`
+     re-measures it in a real browser; changing a value here without running it
+     is how the "quiet" tones silently drift back under the threshold. We ship a
+     product that guarantees AA on the creator's page — the tool that makes it
+     has to hold itself to the same line. */
+  --color-ink-950: #08080c;
+  --color-ink-900: #0c0c12;
+  --color-ink-880: #101017;
+  --color-ink-850: #15151e;
+  --color-ink-800: #1b1b25;
+  --color-ink-750: #22222d;
+  --color-ink-700: #2b2b37;
+  --color-ink-600: #8b8ba4;
+  --color-ink-500: #9494ad;
+  --color-ink-400: #a3a3b8;
+  --color-ink-300: #b4b4c6;
+  --color-ink-200: #cbcbd8;
+  --color-ink-100: #dedee7;
+  --color-ink-50: #f4f4f8;
+
+  /* --- Accent -------------------------------------------------------------
+     One accent, used only for the primary action and current state. Spending
+     it on anything else is what makes an interface look busy. */
+  --color-accent-300: #b9aeff;
+  --color-accent-400: #9a8bfb;
+  --color-accent-500: #7c6bf5;
+  --color-accent-600: #6353dd;
+  --color-accent-700: #4f41b8;
+
+  /* A filled button and accent-coloured text want opposite things: white on
+     accent-500 is only 3.98:1, while accent-500 as text on ink-950 is 5.03:1.
+     Darkening the one token to fix the button would dull every accent label on
+     the page, so the solid fill gets its own pair. Both clear AA with white
+     (5.07:1 at rest, 4.63:1 on hover) and hover still brightens. */
+  --color-accent-solid: #6a59e2;
+  --color-accent-solid-hover: #7160e8;
+
+  /* --- Semantics ---------------------------------------------------------- */
+  --color-positive-400: #4ade80;
+  --color-positive-500: #22c55e;
+  --color-caution-400: #fbbf24;
+  --color-caution-500: #f59e0b;
+  --color-critical-400: #f87171;
+  --color-critical-500: #ef4444;
+
+  /* --- Type ---------------------------------------------------------------
+     Base is 14px: this is a dense tool, not an article. The scale is roughly
+     a minor third, tightened at display sizes where it would otherwise jump. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-4xl: 3rem;
+  --text-4xl--line-height: 3.25rem;
+  --text-5xl: 3.75rem;
+  --text-5xl--line-height: 3.9rem;
+
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+
+  /* --- Radii --------------------------------------------------------------
+     Nested corners need decreasing radii or the inner shape looks pinched. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 13px;
+  --radius-xl: 18px;
+  --radius-2xl: 26px;
+
+  /* --- Elevation ----------------------------------------------------------
+     On dark surfaces a shadow alone reads as mud; each level pairs a shadow
+     with a hairline highlight so the edge is what separates the planes. */
+  --shadow-raise:
+    0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-panel:
+    0 1px 0 0 rgb(255 255 255 / 0.03) inset, 0 4px 16px -4px rgb(0 0 0 / 0.5);
+  --shadow-float:
+    0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 16px 40px -12px rgb(0 0 0 / 0.7);
+  --shadow-glow: 0 0 0 1px rgb(124 107 245 / 0.35), 0 8px 28px -8px rgb(124 107 245 / 0.45);
+
+  /* --- Motion -------------------------------------------------------------
+     Two durations. More than that and nothing feels like one system. */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 :root {
   color-scheme: dark;
+
+  /* Non-utility tokens: read directly in component styles. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+
+  /* The app's own chrome. Public pages override these with the user's theme. */
+  --app-bg: var(--color-ink-950);
+  --app-hairline: rgb(255 255 255 / 0.07);
+  --app-hairline-strong: rgb(255 255 255 / 0.12);
 }
 
 html,
@@ -16,10 +147,48 @@ body {
 
 body {
   font-family: var(--font-sans);
+  font-size: var(--text-base);
+  background: var(--app-bg);
+  color: var(--color-ink-50);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Respect users who have asked the OS to reduce motion. */
+/* Tabular figures wherever numbers are compared down a column. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  Focus.
+
+  `currentColor` adapts to whatever surface it lands on, which matters because
+  the public page paints itself in the creator's colours and a fixed focus
+  ring would disappear against half of them.
+*/
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* The app's own chrome gets the accent ring, which reads better than a
+   near-white one on near-black. */
+.app-scope :focus-visible {
+  outline-color: var(--color-accent-400);
+}
+
+::selection {
+  background: rgb(124 107 245 / 0.35);
+}
+
+/* Scrollbars, so a dark panel does not get a bright system scrollbar cut
+   through it. */
+.app-scope * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-700) transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -29,10 +198,4 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Visible keyboard focus everywhere — the public page overrides the colour. */
-:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
 }

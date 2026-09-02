@@ -4,6 +4,7 @@ import { getEditablePage } from "@/server/pages";
 import { listConnections } from "@/server/connections";
 import { configuredProviders, PROVIDERS, type ProviderId } from "@/lib/oauth/providers";
 import { ConnectionsPanel } from "@/components/dashboard/ConnectionsPanel";
+import { PageHeader, PageBody } from "@/components/ui/Panel";
 
 export const metadata = { title: "Comptes connectés" };
 
@@ -39,17 +40,16 @@ export default async function ConnectionsPage({
   const syncedBlocks = page.links.filter((l) => l.syncProvider !== null);
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="mb-1 text-lg font-semibold">Comptes connectés</h1>
-      <p className="mb-6 text-sm text-neutral-500">
-        Connectez un compte pour qu&apos;un bloc affiche automatiquement votre dernière sortie,
-        sans mise à jour manuelle.
-      </p>
+    <PageBody>
+      <PageHeader
+        title="Comptes connectés"
+        description="Connectez un compte pour qu'un bloc affiche automatiquement votre dernière sortie, sans mise à jour manuelle."
+      />
 
       {message ? (
         <p
           role="status"
-          className="mb-6 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-neutral-200"
+          className="mb-5 rounded-lg bg-accent-500/[0.07] px-4 py-3 text-sm text-ink-100 ring-1 ring-inset ring-accent-400/25"
         >
           {message}
         </p>
@@ -74,6 +74,6 @@ export default async function ConnectionsPage({
           syncError: l.syncError,
         }))}
       />
-    </div>
+    </PageBody>
   );
 }

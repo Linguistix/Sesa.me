@@ -10,6 +10,7 @@ import { listShortLinks } from "@/server/shortlinks";
 import { AnalyticsView } from "@/components/dashboard/AnalyticsView";
 import { ShortLinkManager } from "@/components/dashboard/ShortLinkManager";
 import { can, limitsFor } from "@/lib/plans";
+import { PageHeader, Panel, PageBody, SectionHeader } from "@/components/ui/Panel";
 import { appUrl } from "@/lib/urls";
 
 export const metadata = { title: "Statistiques" };
@@ -52,44 +53,46 @@ export default async function AnalyticsPage({
   ]);
 
   return (
-    <>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">Statistiques</h1>
+    <PageBody width="wide">
+      <PageHeader
+        title="Statistiques"
+        description="Mesurées sans cookie ni adresse IP conservée."
+        action={
+          <nav aria-label="Période" className="flex gap-0.5 rounded-lg bg-ink-880 p-0.5 ring-1 ring-inset ring-white/7">
+            {RANGES.map((range) => (
+              <Link
+                key={range}
+                href={`/dashboard/analytics?days=${range}`}
+                aria-current={range === days ? "page" : undefined}
+                className={[
+                  "rounded-md px-2.5 py-1 text-xs transition",
+                  range === days
+                    ? "bg-white/10 text-ink-50"
+                    : "text-ink-400 hover:text-ink-100",
+                ].join(" ")}
+              >
+                {range} j
+              </Link>
+            ))}
+          </nav>
+        }
+      />
 
-        <nav aria-label="Période" className="flex gap-1">
-          {RANGES.map((range) => (
-            <Link
-              key={range}
-              href={`/dashboard/analytics?days=${range}`}
-              aria-current={range === days ? "page" : undefined}
-              className={[
-                "rounded-lg px-3 py-1.5 text-sm transition",
-                range === days
-                  ? "bg-white/10 text-neutral-100"
-                  : "text-neutral-400 hover:bg-white/5 hover:text-neutral-200",
-              ].join(" ")}
-            >
-              {range} j
-            </Link>
-          ))}
-        </nav>
-      </div>
-
+      {/* The model phrases the figures; it never computes them. */}
       {summary ? (
-        <p className="mb-6 rounded-xl border border-indigo-500/25 bg-indigo-500/[0.06] px-4 py-3 text-sm text-neutral-200">
+        <p className="mb-5 rounded-xl bg-accent-500/[0.07] px-4 py-3 text-sm text-ink-100 ring-1 ring-inset ring-accent-400/25">
           {summary}
         </p>
       ) : null}
 
       <AnalyticsView report={report} days={days} canExport={can(plan, "canExportCsv")} />
 
-      <section aria-labelledby="short-heading" className="mt-10">
-        <h2 id="short-heading" className="mb-1 text-sm font-medium text-neutral-400">
-          Liens courts
-        </h2>
-        <p className="mb-4 text-sm text-neutral-500">
-          Un lien court compte chaque clic, même partagé hors de votre page.
-        </p>
+      <Panel className="mt-5 p-5" aria-labelledby="short-heading">
+        <SectionHeader
+          id="short-heading"
+          title="Liens courts"
+          description="Un lien court compte chaque clic, même partagé hors de votre page."
+        />
 
         <ShortLinkManager
           baseUrl={appUrl("/u")}
@@ -104,7 +107,7 @@ export default async function AnalyticsPage({
             .filter((l) => l.url && (l.type === "LINK" || l.type === "SOCIAL"))
             .map((l) => ({ id: l.id, title: l.title, url: l.url! }))}
         />
-      </section>
-    </>
+      </Panel>
+    </PageBody>
   );
 }

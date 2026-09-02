@@ -5,12 +5,18 @@ import { useFormStatus } from "react-dom";
 import { createLinkAction, updateLinkAction } from "@/actions/page";
 import type { ActionState } from "@/actions/auth";
 import type { EditorLink } from "./types";
-import { BLOCK_LABELS, BLOCK_TYPES, IMAGE_BLOCK_TYPES, URL_BLOCK_TYPES } from "@/lib/block-types";
+import {
+  BLOCK_GLYPHS,
+  BLOCK_LABELS,
+  BLOCK_TYPES,
+  IMAGE_BLOCK_TYPES,
+  URL_BLOCK_TYPES,
+} from "@/lib/block-types";
+import { Field, Select, TextArea, TextInput } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 import { ImageUploader } from "./ImageUploader";
 
 const EMPTY: ActionState = {};
-
-const TYPE_OPTIONS = BLOCK_TYPES.map((value) => ({ value, label: BLOCK_LABELS[value] }));
 
 export function LinkForm({
   mode,
@@ -23,7 +29,6 @@ export function LinkForm({
   link?: EditorLink;
   onDone?: () => void;
   storageEnabled?: boolean;
-  /** Sync sources the user's connected accounts make available. */
   syncProviders?: Array<{ value: string; label: string }>;
 }) {
   const action = mode === "create" ? createLinkAction : updateLinkAction;
@@ -35,202 +40,238 @@ export function LinkForm({
   const formRef = useRef<HTMLFormElement>(null);
   const succeeded = state === EMPTY ? false : !state.error && !state.fieldErrors;
 
+  /*
+    Clearing the block's own state after a successful create happens during
+    render, not in an effect: an effect would commit the filled-in form to the
+    screen and then immediately re-render it empty, and React flags the
+    cascading render. Comparing against the last state we handled is the
+    documented way to adjust state when an input changes.
+  */
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
+    if (succeeded && mode === "create") {
+      setImages([]);
+      setSyncProvider("");
+    }
+  }
+
+  // The uncontrolled inputs and the parent callback are genuine side effects,
+  // so they do stay here.
   useEffect(() => {
     if (!succeeded) return;
     if (mode === "create") formRef.current?.reset();
     onDone?.();
-    // `state` identity changes on every action result, which is the signal here.
   }, [state, succeeded, mode, onDone]);
 
   const synced = syncProvider !== "";
-  // A synced block's destination comes from the provider, so the URL field is
-  // hidden rather than shown empty and un-editable.
   const needsUrl = URL_BLOCK_TYPES.includes(type) && !synced;
   const needsImages = IMAGE_BLOCK_TYPES.includes(type);
-  // An image block may carry a destination, but does not require one.
   const optionalUrl = type === "IMAGE";
+  const canSync = syncProviders.length > 0 && URL_BLOCK_TYPES.includes(type);
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-3">
+    <form ref={formRef} action={formAction} className="flex flex-col gap-4">
       {link ? <input type="hidden" name="linkId" value={link.id} /> : null}
       {link ? <input type="hidden" name="isActive" value={String(link.isActive)} /> : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <Field label="Type" className="sm:w-44">
-          <select
-            name="type"
-            value={type}
-            onChange={(e) => setType(e.target.value as EditorLink["type"])}
-            className={inputClass}
-          >
-            {TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+      {/*
+        Type is a segmented control rather than a dropdown: there are eight
+        kinds, they are the first decision, and seeing all of them is what
+        tells a new user the page can hold more than links.
+      */}
+      <fieldset>
+        <legend className="mb-2 text-xs font-medium text-ink-300">Type de bloc</legend>
+        <input type="hidden" name="type" value={type} />
+        <div className="flex flex-wrap gap-1.5">
+          {BLOCK_TYPES.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setType(value)}
+              aria-pressed={type === value}
+              className={[
+                "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors duration-[120ms]",
+                type === value
+                  ? "bg-accent-500/16 text-accent-300 ring-1 ring-inset ring-accent-400/35"
+                  : "bg-ink-800 text-ink-300 ring-1 ring-inset ring-white/8 hover:bg-ink-750 hover:text-ink-100",
+              ].join(" ")}
+            >
+              <span aria-hidden className="opacity-70">
+                {BLOCK_GLYPHS[value]}
+              </span>
+              {BLOCK_LABELS[value]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
-        <Field label="Emoji" className="sm:w-24" hint="facultatif">
-          <input name="emoji" defaultValue={link?.emoji ?? ""} maxLength={8} className={inputClass} />
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <Field label="Emoji" hint="facultatif" className="sm:w-24">
+          {({ id }) => (
+            <TextInput id={id} name="emoji" defaultValue={link?.emoji ?? ""} maxLength={8} />
+          )}
         </Field>
 
         <Field label="Titre" error={state.fieldErrors?.title} className="flex-1">
-          <input
-            name="title"
-            defaultValue={link?.title ?? ""}
-            required
-            maxLength={80}
-            placeholder="Ma chaîne YouTube"
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.title)}
-          />
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              name="title"
+              defaultValue={link?.title ?? ""}
+              required
+              maxLength={80}
+              placeholder="Ma chaîne YouTube"
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
         </Field>
       </div>
 
-      {syncProviders.length > 0 && URL_BLOCK_TYPES.includes(type) ? (
+      {canSync ? (
         <Field label="Source automatique" hint="facultatif">
-          <select
-            name="syncProvider"
-            value={syncProvider}
-            onChange={(e) => setSyncProvider(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Aucune — je saisis l&apos;URL moi-même</option>
-            {syncProviders.map((provider) => (
-              <option key={provider.value} value={provider.value}>
-                {provider.label}
-              </option>
-            ))}
-          </select>
+          {({ id }) => (
+            <Select
+              id={id}
+              name="syncProvider"
+              value={syncProvider}
+              onChange={(e) => setSyncProvider(e.target.value)}
+            >
+              <option value="">Aucune — je saisis l&apos;URL moi-même</option>
+              {syncProviders.map((provider) => (
+                <option key={provider.value} value={provider.value}>
+                  {provider.label}
+                </option>
+              ))}
+            </Select>
+          )}
         </Field>
       ) : (
         <input type="hidden" name="syncProvider" value="" />
       )}
 
       {synced ? (
-        <p className="text-xs text-neutral-500">
-          Le titre et le lien de ce bloc sont récupérés automatiquement depuis votre compte
-          connecté. {link?.syncError ? <span className="text-amber-300">⚠ {link.syncError}</span> : null}
-        </p>
-      ) : null}
-
-      {needsUrl || optionalUrl ? (
-        <Field
-          label="URL"
-          error={state.fieldErrors?.url}
-          hint={optionalUrl ? "facultatif" : undefined}
-        >
-          <input
-            name="url"
-            type="url"
-            defaultValue={link?.url ?? ""}
-            placeholder={type === "EMBED" ? "https://open.spotify.com/track/…" : "https://…"}
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.url)}
-          />
-        </Field>
-      ) : (
-        <input type="hidden" name="url" value="" />
-      )}
-
-      {type === "EMBED" ? (
-        <p className="text-xs text-neutral-500">
-          Fournisseurs reconnus : Spotify, Apple Music, SoundCloud, YouTube, Twitch. Un autre
-          lien reste affiché comme un bouton classique.
+        <p className="rounded-md bg-accent-500/8 px-3 py-2 text-xs text-accent-300 ring-1 ring-inset ring-accent-400/20">
+          Le titre et le lien sont récupérés automatiquement depuis votre compte connecté.
+          {link?.syncError ? <span className="text-caution-400"> {link.syncError}</span> : null}
         </p>
       ) : null}
 
       {needsImages ? (
         <Field
           label={type === "GALLERY" ? "Images de la galerie" : "Image"}
-          error={state.fieldErrors?.images}
           hint="une URL par ligne"
+          error={state.fieldErrors?.images}
         >
-          <div className="flex flex-col gap-2">
-            <textarea
-              name="images"
-              value={images.join("\n")}
-              onChange={(e) => setImages(e.target.value.split(/\r?\n/))}
-              rows={type === "GALLERY" ? 4 : 2}
-              placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"}
-              className={inputClass}
-              aria-invalid={Boolean(state.fieldErrors?.images)}
-            />
-
-            {images.filter(Boolean).length > 0 ? (
-              <ul className="flex flex-wrap gap-2">
-                {images.filter(Boolean).map((src) => (
-                  <li key={src}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt=""
-                      aria-hidden
-                      width={48}
-                      height={48}
-                      className="h-12 w-12 rounded object-cover"
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {storageEnabled ? (
-              <ImageUploader
-                purpose="gallery"
-                label={type === "GALLERY" ? "Téléverser des images" : "Téléverser une image"}
-                multiple={type === "GALLERY"}
-                onUploaded={(uploaded) => {
-                  const urls = uploaded.map((u) => u.url);
-                  // An image block holds one; a gallery accumulates.
-                  setImages((current) =>
-                    type === "GALLERY" ? [...current.filter(Boolean), ...urls] : urls.slice(0, 1),
-                  );
-                }}
+          {({ id, describedBy, invalid }) => (
+            <div className="flex flex-col gap-2">
+              <TextArea
+                id={id}
+                name="images"
+                value={images.join("\n")}
+                onChange={(e) => setImages(e.target.value.split(/\r?\n/))}
+                rows={type === "GALLERY" ? 4 : 2}
+                placeholder={"https://…/photo-1.jpg\nhttps://…/photo-2.jpg"}
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
               />
-            ) : null}
-          </div>
+
+              {images.filter(Boolean).length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {images.filter(Boolean).map((src) => (
+                    <li key={src}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt=""
+                        aria-hidden
+                        width={44}
+                        height={44}
+                        className="h-11 w-11 rounded-md object-cover ring-1 ring-inset ring-white/10"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {storageEnabled ? (
+                <ImageUploader
+                  purpose="gallery"
+                  label={type === "GALLERY" ? "Téléverser des images" : "Téléverser une image"}
+                  multiple={type === "GALLERY"}
+                  onUploaded={(uploaded) => {
+                    const urls = uploaded.map((u) => u.url);
+                    setImages((current) =>
+                      type === "GALLERY" ? [...current.filter(Boolean), ...urls] : urls.slice(0, 1),
+                    );
+                  }}
+                />
+              ) : null}
+            </div>
+          )}
         </Field>
       ) : (
         <input type="hidden" name="images" value="" />
       )}
 
+      {needsUrl || optionalUrl ? (
+        <Field
+          label="URL"
+          hint={optionalUrl ? "facultatif" : undefined}
+          error={state.fieldErrors?.url}
+        >
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              name="url"
+              type="url"
+              defaultValue={link?.url ?? ""}
+              placeholder={type === "EMBED" ? "https://open.spotify.com/track/…" : "https://…"}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
+        </Field>
+      ) : (
+        <input type="hidden" name="url" value="" />
+      )}
+
+      {type === "EMBED" ? (
+        <p className="text-xs text-ink-500">
+          Fournisseurs reconnus : Spotify, Apple Music, SoundCloud, YouTube, Twitch. Un autre lien
+          reste affiché comme un bouton classique.
+        </p>
+      ) : null}
+
       {type === "TEXT" ? (
         <Field label="Contenu" error={state.fieldErrors?.body}>
-          <textarea
-            name="body"
-            defaultValue={link?.body ?? ""}
-            rows={3}
-            maxLength={1000}
-            className={inputClass}
-          />
+          {({ id, describedBy, invalid }) => (
+            <TextArea
+              id={id}
+              name="body"
+              defaultValue={link?.body ?? ""}
+              rows={3}
+              maxLength={1000}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
         </Field>
       ) : null}
 
       {needsUrl ? (
-        <div className="rounded-lg border border-white/10 p-3">
+        <div className="rounded-md bg-ink-900/60 p-3 ring-1 ring-inset ring-white/6">
           {mode === "edit" && link?.hasPassword && !changePassword ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-neutral-400">
-                🔒 Ce lien est protégé par un mot de passe.
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setChangePassword(true)}
-                  className="rounded-md px-2 py-1 text-xs text-neutral-300 hover:bg-white/5"
-                >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-ink-400">Ce lien est protégé par un mot de passe.</p>
+              <div className="flex gap-1">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setChangePassword(true)}>
                   Changer
-                </button>
-                <button
-                  type="submit"
-                  name="password"
-                  value=""
-                  className="rounded-md px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                >
+                </Button>
+                <Button type="submit" name="password" value="" variant="danger" size="sm">
                   Retirer
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -238,21 +279,23 @@ export function LinkForm({
               label="Mot de passe"
               hint={mode === "edit" ? "laisser vide pour ne pas changer" : "facultatif"}
             >
-              <input
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                maxLength={72}
-                placeholder="Protéger l'accès à ce lien"
-                className={inputClass}
-              />
+              {({ id }) => (
+                <TextInput
+                  id={id}
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  maxLength={72}
+                  placeholder="Protéger l'accès à ce lien"
+                />
+              )}
             </Field>
           )}
         </div>
       ) : null}
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-critical-400">
           {state.error}
         </p>
       ) : null}
@@ -260,13 +303,9 @@ export function LinkForm({
       <div className="flex gap-2">
         <SubmitButton label={mode === "create" ? "Ajouter le bloc" : "Enregistrer"} />
         {mode === "edit" && onDone ? (
-          <button
-            type="button"
-            onClick={onDone}
-            className="rounded-lg border border-white/15 px-4 py-2 text-sm text-neutral-300 transition hover:bg-white/5"
-          >
+          <Button type="button" variant="ghost" onClick={onDone}>
             Annuler
-          </button>
+          </Button>
         ) : null}
       </div>
     </form>
@@ -276,44 +315,8 @@ export function LinkForm({
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
-    >
+    <Button type="submit" variant="primary" disabled={pending}>
       {pending ? "…" : label}
-    </button>
-  );
-}
-
-export const inputClass =
-  "w-full rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-neutral-100 outline-none transition placeholder:text-neutral-600 focus:border-indigo-400";
-
-export function Field({
-  label,
-  hint,
-  error,
-  className = "",
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="text-xs font-medium text-neutral-400">
-        {label}
-        {hint ? <span className="ml-1 font-normal text-neutral-600">({hint})</span> : null}
-      </span>
-      {children}
-      {error ? (
-        <span role="alert" className="text-xs text-red-400">
-          {error}
-        </span>
-      ) : null}
-    </label>
+    </Button>
   );
 }

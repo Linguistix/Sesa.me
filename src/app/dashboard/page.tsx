@@ -1,16 +1,22 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getEditablePage } from "@/server/pages";
+import { availableSyncProviders } from "@/server/sync";
+import { isStorageConfigured } from "@/lib/storage";
 import { LinkList } from "@/components/dashboard/LinkList";
 import { LinkForm } from "@/components/dashboard/LinkForm";
 import { ProfileForm } from "@/components/dashboard/ProfileForm";
 import { PhonePreview } from "@/components/dashboard/PhonePreview";
 import { PageRenderer } from "@/components/public/PageRenderer";
+import { Panel, SectionHeader } from "@/components/ui/Panel";
 import { appUrl } from "@/lib/urls";
-import { isStorageConfigured } from "@/lib/storage";
-import { availableSyncProviders } from "@/server/sync";
 
 export const metadata = { title: "Éditeur" };
+
+const SYNC_LABELS: Record<string, string> = {
+  SPOTIFY_LATEST_RELEASE: "Spotify — dernière sortie",
+  YOUTUBE_LATEST_VIDEO: "YouTube — dernière vidéo",
+};
 
 export default async function EditorPage() {
   const session = await auth();
@@ -19,40 +25,49 @@ export default async function EditorPage() {
 
   const syncProviders = (await availableSyncProviders(session!.user.id)).map((value) => ({
     value,
-    label:
-      value === "SPOTIFY_LATEST_RELEASE"
-        ? "Spotify — dernière sortie"
-        : "YouTube — dernière vidéo",
+    label: SYNC_LABELS[value] ?? value,
   }));
 
+  const storageEnabled = isStorageConfigured();
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex flex-col gap-8">
+    /*
+      Two columns, and the preview is sticky. A creator edits a block and looks
+      right to see the effect — if the preview scrolls away, that loop breaks
+      and they end up opening the public page in another tab to check their
+      work, which is the thing a live preview exists to prevent.
+    */
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+      <div className="flex min-w-0 flex-col gap-10">
         <section aria-labelledby="profile-heading">
-          <h1 id="profile-heading" className="mb-4 text-lg font-semibold">
-            Votre page
-          </h1>
-          <ProfileForm
-            storageEnabled={isStorageConfigured()}
-            page={{
-              slug: page.slug,
-              displayName: page.displayName,
-              bio: page.bio,
-              avatarUrl: page.avatarUrl,
-            }}
+          <SectionHeader
+            level="h1"
+            id="profile-heading"
+            title="Votre page"
+            description="Le nom, la bio et l'adresse que verront vos visiteurs."
           />
+          <Panel inset>
+            <ProfileForm
+              storageEnabled={storageEnabled}
+              page={{
+                slug: page.slug,
+                displayName: page.displayName,
+                bio: page.bio,
+                avatarUrl: page.avatarUrl,
+              }}
+            />
+          </Panel>
         </section>
 
         <section aria-labelledby="links-heading">
-          <h2 id="links-heading" className="mb-1 text-lg font-semibold">
-            Blocs
-          </h2>
-          <p className="mb-4 text-sm text-neutral-500">
-            Glissez-déposez pour réordonner, ou utilisez la poignée au clavier.
-          </p>
+          <SectionHeader
+            id="links-heading"
+            title="Blocs"
+            description="Glissez-déposez pour réordonner, ou utilisez la poignée au clavier."
+          />
 
           <LinkList
-            storageEnabled={isStorageConfigured()}
+            storageEnabled={storageEnabled}
             syncProviders={syncProviders}
             links={page.links.map((l) => ({
               id: l.id,
@@ -69,19 +84,14 @@ export default async function EditorPage() {
             }))}
           />
 
-          <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-            <h3 className="mb-3 text-sm font-medium text-neutral-200">Ajouter un bloc</h3>
-            <LinkForm
-              mode="create"
-              storageEnabled={isStorageConfigured()}
-              syncProviders={syncProviders}
-            />
-          </div>
+          <Panel className="mt-4 p-4">
+            <h3 className="mb-3 text-sm font-semibold text-ink-100">Ajouter un bloc</h3>
+            <LinkForm mode="create" storageEnabled={storageEnabled} syncProviders={syncProviders} />
+          </Panel>
         </section>
       </div>
 
-      <aside className="lg:sticky lg:top-20 lg:h-fit">
-        <h2 className="mb-3 text-sm font-medium text-neutral-400">Aperçu</h2>
+      <aside className="hidden lg:sticky lg:top-32 lg:block">
         <PhonePreview href={appUrl(`/${page.slug}`)}>
           <PageRenderer
             preview
@@ -105,6 +115,7 @@ export default async function EditorPage() {
                   body: l.body,
                   images: l.images,
                   isLocked: l.passwordHash !== null,
+                  form: null,
                 })),
             }}
           />

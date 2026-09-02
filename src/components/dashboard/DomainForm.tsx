@@ -4,7 +4,9 @@ import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { attachDomainAction, detachDomainAction, verifyDomainAction } from "@/actions/domain";
 import type { ActionState } from "@/actions/auth";
-import { Field, inputClass } from "./LinkForm";
+import { Field, TextInput } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
+import { Badge, Panel, SectionHeader } from "@/components/ui/Panel";
 
 const EMPTY: ActionState = {};
 
@@ -20,76 +22,74 @@ export function DomainForm({
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-6">
-      <form action={formAction} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <Field label="Votre domaine" error={state.fieldErrors?.hostname}>
-          <input
-            name="hostname"
-            defaultValue={domain?.hostname ?? ""}
-            placeholder="liens.mon-site.fr"
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.hostname)}
-          />
-        </Field>
-        <SaveButton label={domain ? "Changer de domaine" : "Ajouter le domaine"} />
-      </form>
+    <div className="flex flex-col gap-5">
+      <Panel className="p-5">
+        <form action={formAction}>
+          <Field label="Votre domaine" error={state.fieldErrors?.hostname}>
+            {({ id, describedBy, invalid }) => (
+              <TextInput
+                id={id}
+                name="hostname"
+                defaultValue={domain?.hostname ?? ""}
+                placeholder="liens.mon-site.fr"
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+              />
+            )}
+          </Field>
+          <SaveButton label={domain ? "Changer de domaine" : "Ajouter le domaine"} />
+        </form>
+      </Panel>
 
       {domain ? (
-        <section
-          aria-labelledby="verify-heading"
-          className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
-        >
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 id="verify-heading" className="text-sm font-medium text-neutral-200">
-              Vérification
-            </h2>
-            <span
-              className={[
-                "rounded-full px-2 py-0.5 text-xs",
-                domain.verified
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-amber-500/15 text-amber-300",
-              ].join(" ")}
-            >
-              {domain.verified ? "Vérifié" : "En attente"}
-            </span>
-          </div>
+        <Panel className="p-5" aria-labelledby="verify-heading">
+          <SectionHeader
+            id="verify-heading"
+            title="Vérification"
+            description="Ajoutez cet enregistrement TXT chez votre hébergeur DNS, puis lancez la vérification. Tant que le domaine n'est pas vérifié, il ne sert pas votre page."
+            action={
+              <Badge tone={domain.verified ? "positive" : "caution"}>
+                {domain.verified ? "Vérifié" : "En attente"}
+              </Badge>
+            }
+          />
 
-          <p className="text-sm text-neutral-400">
-            Ajoutez cet enregistrement TXT chez votre hébergeur DNS, puis lancez la
-            vérification. Tant que le domaine n&apos;est pas vérifié, il ne sert pas votre page.
-          </p>
-
-          <dl className="mt-3 grid gap-2 rounded-lg border border-white/10 bg-black/25 p-3 text-xs">
-            <div className="flex gap-2">
-              <dt className="w-20 shrink-0 text-neutral-500">Type</dt>
-              <dd className="text-neutral-200">TXT</dd>
+          {/*
+            Monospace and generous breaking: every character here has to be
+            copied exactly into a DNS panel, and a token that wraps mid-word
+            with no visual seam is a token someone will mistype.
+          */}
+          <dl className="grid gap-2.5 rounded-lg bg-ink-950 p-3.5 text-xs ring-1 ring-inset ring-white/6">
+            <div className="flex gap-3">
+              <dt className="w-16 shrink-0 text-ink-400">Type</dt>
+              <dd className="font-mono text-ink-100">TXT</dd>
             </div>
-            <div className="flex gap-2">
-              <dt className="w-20 shrink-0 text-neutral-500">Nom</dt>
-              <dd className="break-all font-mono text-neutral-200">
+            <div className="flex gap-3">
+              <dt className="w-16 shrink-0 text-ink-400">Nom</dt>
+              <dd className="break-all font-mono text-ink-100">
                 {txtRecordName}.{domain.hostname}
               </dd>
             </div>
-            <div className="flex gap-2">
-              <dt className="w-20 shrink-0 text-neutral-500">Valeur</dt>
-              <dd className="break-all font-mono text-neutral-200">{domain.token}</dd>
+            <div className="flex gap-3">
+              <dt className="w-16 shrink-0 text-ink-400">Valeur</dt>
+              <dd className="break-all font-mono text-ink-100">{domain.token}</dd>
             </div>
           </dl>
 
-          <p className="mt-3 text-sm text-neutral-400">
+          <p className="mt-3 text-sm text-ink-400">
             Pointez ensuite votre domaine vers Sesame avec un enregistrement CNAME.
           </p>
 
           {verifyError ? (
-            <p role="alert" className="mt-3 text-sm text-red-400">
+            <p role="alert" className="mt-3 text-sm text-critical-400">
               {verifyError}
             </p>
           ) : null}
 
           <div className="mt-4 flex gap-2">
-            <button
+            <Button
               type="button"
+              variant="primary"
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
@@ -98,24 +98,23 @@ export function DomainForm({
                   if (result.error) setVerifyError(result.error);
                 })
               }
-              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
             >
               {pending ? "Vérification…" : "Vérifier maintenant"}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="danger"
               onClick={() =>
                 startTransition(async () => {
                   await detachDomainAction();
                 })
               }
-              className="rounded-lg px-3 py-2 text-sm text-red-400 transition hover:bg-red-500/10"
             >
               Retirer
-            </button>
+            </Button>
           </div>
-        </section>
+        </Panel>
       ) : null}
     </div>
   );
@@ -124,12 +123,8 @@ export function DomainForm({
 function SaveButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="mt-3 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
-    >
-      {pending ? "…" : label}
-    </button>
+    <Button type="submit" variant="primary" disabled={pending} className="mt-3">
+      {pending ? "Enregistrement…" : label}
+    </Button>
   );
 }

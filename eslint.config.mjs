@@ -26,6 +26,16 @@ const config = [
       ],
     },
   },
+  {
+    // The end-to-end suite contains no React. The hooks rules match on naming,
+    // so Playwright's fixture callback — `async ({ page }, use) => …` — reads
+    // as a call to React's `use` hook inside a function named `page`, and gets
+    // reported as a rules-of-hooks violation that cannot occur here.
+    files: ["e2e/**"],
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+    },
+  },
 ];
 
 export default config;

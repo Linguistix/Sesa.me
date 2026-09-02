@@ -1,4 +1,5 @@
 import type { FullReport } from "@/server/analytics";
+import { Panel, EmptyState, Badge } from "@/components/ui/Panel";
 
 /**
  * The analytics dashboard.
@@ -19,57 +20,66 @@ export function AnalyticsView({
   const { summary, series, sources, countries, devices, links } = report;
 
   return (
-    <div className="flex flex-col gap-8">
-      <section aria-label="Chiffres clés" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="flex flex-col gap-6">
+      {/*
+        The four headline figures carry the most weight on the screen, so they
+        get the largest type on it. Everything below is a breakdown of these.
+      */}
+      <section aria-label="Chiffres clés" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Vues" value={summary.views} />
         <Stat label="Visiteurs uniques" value={summary.uniqueVisitors} />
         <Stat label="Clics" value={summary.clicks} />
         <Stat label="Taux de clic" value={`${summary.ctr} %`} />
       </section>
 
-      <section aria-labelledby="chart-heading">
-        <h2 id="chart-heading" className="mb-3 text-sm font-medium text-neutral-400">
-          Évolution sur {days} jours
-        </h2>
+      <Panel className="p-5">
+        <ChartHeading id="chart-heading">Évolution sur {days} jours</ChartHeading>
         <TrendChart series={series} />
-      </section>
+      </Panel>
 
-      <section aria-labelledby="links-heading">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 id="links-heading" className="text-sm font-medium text-neutral-400">
+      <Panel className="p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <ChartHeading id="links-heading" flush>
             Performance par lien
-          </h2>
+          </ChartHeading>
           {canExport ? (
             <a
               href={`/api/analytics/export?days=${days}`}
               download
-              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-white/5"
+              className="rounded-md px-2.5 py-1 text-xs text-ink-200 ring-1 ring-inset ring-white/12 transition hover:bg-white/5"
             >
               Export CSV
             </a>
           ) : (
-            <span className="text-xs text-neutral-600">Export CSV — réservé au plan Pro</span>
+            <Badge>Export CSV — plan Pro</Badge>
           )}
         </div>
 
         {links.length === 0 ? (
-          <Empty>Aucun clic sur la période.</Empty>
+          <EmptyState
+            bare
+            title="Aucun clic sur la période"
+            description="Dès qu'un visiteur clique sur un de vos blocs, il apparaît ici."
+          />
         ) : (
-          <ul className="flex flex-col gap-2">
-            {links.map((link) => (
+          <ol className="flex flex-col">
+            {links.map((link, index) => (
               <li
                 key={link.linkId}
-                className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
+                className="flex items-center gap-3 border-t border-white/6 py-2.5 first:border-t-0 first:pt-0"
               >
-                <span className="truncate text-sm text-neutral-200">{link.title}</span>
-                <span className="text-sm tabular-nums text-neutral-400">{link.clicks}</span>
+                <span aria-hidden className="tabular w-5 shrink-0 text-xs text-ink-600">
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-base text-ink-100">{link.title}</span>
+                <span className="tabular shrink-0 text-base text-ink-300">{link.clicks}</span>
               </li>
             ))}
-          </ul>
+          </ol>
         )}
-      </section>
+      </Panel>
 
-      <div className="grid gap-6 sm:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Breakdown title="Sources" rows={sources} />
         <Breakdown title="Pays" rows={countries} format={countryName} />
         <Breakdown title="Appareils" rows={devices} format={deviceName} />
@@ -78,12 +88,32 @@ export function AnalyticsView({
   );
 }
 
+/** One heading treatment for every block on this screen. */
+function ChartHeading({
+  id,
+  flush = false,
+  children,
+}: {
+  id: string;
+  flush?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <h2
+      id={id}
+      className={`text-2xs font-medium uppercase tracking-[0.08em] text-ink-500 ${flush ? "" : "mb-4"}`}
+    >
+      {children}
+    </h2>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <p className="text-xs text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{value}</p>
-    </div>
+    <Panel className="px-4 py-3.5">
+      <p className="text-2xs font-medium uppercase tracking-[0.08em] text-ink-500">{label}</p>
+      <p className="tabular mt-1.5 text-2xl font-semibold tracking-tight text-ink-50">{value}</p>
+    </Panel>
   );
 }
 
@@ -101,60 +131,106 @@ function TrendChart({ series }: { series: FullReport["series"] }) {
   const max = Math.max(1, ...series.map((p) => Math.max(p.views, p.clicks)));
   const step = series.length > 1 ? (width - padding * 2) / (series.length - 1) : 0;
 
+  const point = (key: "views" | "clicks", index: number) => {
+    const p = series[index];
+    return {
+      x: padding + index * step,
+      y: height - padding - (p[key] / max) * (height - padding * 2),
+    };
+  };
+
   const toPath = (key: "views" | "clicks") =>
     series
-      .map((point, index) => {
-        const x = padding + index * step;
-        const y = height - padding - (point[key] / max) * (height - padding * 2);
+      .map((_, index) => {
+        const { x, y } = point(key, index);
         return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
 
+  // Closes the views line down to the baseline so it can be filled — the fill
+  // is what makes the two series readable as "of which" rather than unrelated.
+  const toArea = (key: "views" | "clicks") => {
+    if (series.length < 2) return "";
+    const first = point(key, 0);
+    const last = point(key, series.length - 1);
+    return `${toPath(key)} L${last.x.toFixed(1)},${height - padding} L${first.x.toFixed(1)},${height - padding} Z`;
+  };
+
   const total = series.reduce((sum, p) => sum + p.views + p.clicks, 0);
 
   if (total === 0) {
-    return <Empty>Pas encore de données — partagez votre page pour commencer à mesurer.</Empty>;
+    return (
+      <EmptyState
+        bare
+        title="Pas encore de données"
+        description="Partagez votre page — les vues et les clics apparaîtront ici au fil des visites."
+      />
+    );
   }
 
   return (
-    <figure className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+    <figure>
       <svg
         viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
         className="h-40 w-full"
         role="img"
         aria-label={`Évolution des vues et des clics sur ${series.length} jours. Maximum ${max} par jour.`}
       >
-        <path d={toPath("views")} fill="none" stroke="#818CF8" strokeWidth="2" />
-        <path d={toPath("clicks")} fill="none" stroke="#34D399" strokeWidth="2" />
+        <defs>
+          <linearGradient id="views-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-accent-400)" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="var(--color-accent-400)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={toArea("views")} fill="url(#views-fill)" stroke="none" />
+        <path
+          d={toPath("views")}
+          fill="none"
+          stroke="var(--color-accent-400)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d={toPath("clicks")}
+          fill="none"
+          stroke="var(--color-positive-400)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
       </svg>
 
-      <figcaption className="mt-3 flex gap-4 text-xs text-neutral-400">
+      <figcaption className="mt-3 flex gap-4 text-xs text-ink-400">
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-[#818CF8]" /> Vues
+          <span aria-hidden className="h-0.5 w-4 rounded bg-accent-400" /> Vues
         </span>
         <span className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-4 rounded bg-[#34D399]" /> Clics
+          <span aria-hidden className="h-0.5 w-4 rounded bg-positive-400" /> Clics
         </span>
       </figcaption>
 
       {/* The same data as a table, for screen readers and for anyone who wants
           the exact figures rather than the shape. */}
-      <details className="mt-3">
-        <summary className="cursor-pointer text-xs text-neutral-500">Voir les données</summary>
-        <table className="mt-2 w-full text-xs">
+      <details className="mt-3 border-t border-white/6 pt-3">
+        <summary className="cursor-pointer text-xs text-ink-400 transition-colors hover:text-ink-200">
+          Voir les données
+        </summary>
+        <table className="tabular mt-2 w-full text-xs">
           <thead>
-            <tr className="text-left text-neutral-500">
-              <th scope="col" className="py-1">Date</th>
-              <th scope="col" className="py-1">Vues</th>
-              <th scope="col" className="py-1">Clics</th>
+            <tr className="text-left text-ink-500">
+              <th scope="col" className="py-1 font-medium">Date</th>
+              <th scope="col" className="py-1 font-medium">Vues</th>
+              <th scope="col" className="py-1 font-medium">Clics</th>
             </tr>
           </thead>
           <tbody>
-            {series.map((point) => (
-              <tr key={point.date} className="text-neutral-300">
-                <td className="py-0.5">{point.date}</td>
-                <td className="py-0.5 tabular-nums">{point.views}</td>
-                <td className="py-0.5 tabular-nums">{point.clicks}</td>
+            {series.map((p) => (
+              <tr key={p.date} className="text-ink-300">
+                <td className="py-0.5">{p.date}</td>
+                <td className="py-0.5">{p.views}</td>
+                <td className="py-0.5">{p.clicks}</td>
               </tr>
             ))}
           </tbody>
@@ -176,24 +252,22 @@ function Breakdown({
   const total = rows.reduce((sum, r) => sum + r.count, 0);
 
   return (
-    <section aria-labelledby={`bd-${title}`}>
-      <h2 id={`bd-${title}`} className="mb-3 text-sm font-medium text-neutral-400">
-        {title}
-      </h2>
+    <Panel className="p-5" aria-labelledby={`bd-${title}`}>
+      <ChartHeading id={`bd-${title}`}>{title}</ChartHeading>
 
       {rows.length === 0 ? (
-        <Empty>Aucune donnée.</Empty>
+        <p className="text-sm text-ink-400">Aucune donnée.</p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {rows.map((row) => (
-            <li key={row.label} className="text-sm">
-              <div className="flex justify-between text-neutral-300">
+            <li key={row.label} className="text-base">
+              <div className="flex justify-between gap-3 text-ink-200">
                 <span className="truncate">{format(row.label)}</span>
-                <span className="tabular-nums text-neutral-500">{row.count}</span>
+                <span className="tabular shrink-0 text-ink-400">{row.count}</span>
               </div>
-              <div aria-hidden className="mt-1 h-1 rounded-full bg-white/5">
+              <div aria-hidden className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/6">
                 <div
-                  className="h-1 rounded-full bg-indigo-500/70"
+                  className="h-1 rounded-full bg-accent-500"
                   style={{ width: `${total === 0 ? 0 : (row.count / total) * 100}%` }}
                 />
               </div>
@@ -201,15 +275,7 @@ function Breakdown({
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-lg border border-dashed border-white/15 p-6 text-center text-sm text-neutral-500">
-      {children}
-    </p>
+    </Panel>
   );
 }
 

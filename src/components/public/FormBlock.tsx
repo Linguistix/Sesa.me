@@ -125,7 +125,7 @@ export function FormBlock({
             )}
 
             {fieldErrors[field.id] ? (
-              <span id={errorId} role="alert" className="text-xs text-red-400">
+              <span id={errorId} role="alert" className="text-xs text-[var(--sesame-critical)]">
                 {fieldErrors[field.id]}
               </span>
             ) : null}
@@ -134,7 +134,7 @@ export function FormBlock({
       })}
 
       {error ? (
-        <p role="alert" className="text-xs text-red-400">
+        <p role="alert" className="text-xs text-[var(--sesame-critical)]">
           {error}
         </p>
       ) : null}

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { type Page } from "@playwright/test";
 
 /**
  * The Phase 1 acceptance path from the brief:
@@ -34,7 +35,10 @@ test("a new user can sign up, add links and see them on their public page", asyn
   // --- Edit the profile ---------------------------------------------------
   await page.getByLabel("Bio", { exact: false }).fill("Ma bio de test.");
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText("Enregistré.")).toBeVisible();
+  // The confirmation is a live region. Asserting on the role rather than the
+  // exact sentence keeps this step about "the save was confirmed", so a copy
+  // edit does not read as a broken journey.
+  await expect(page.getByRole("status")).toContainText("Enregistré");
 
   // --- Add two links ------------------------------------------------------
   const addBlock = page.locator("form").filter({ hasText: "Ajouter le bloc" });
@@ -121,8 +125,10 @@ test("applying a preset theme changes the public page", async ({ page }) => {
 
   await page.goto("/dashboard/appearance");
   await page.getByRole("button", { name: "Appliquer le thème Ivory" }).click();
-  await page.getByRole("button", { name: "Enregistrer le thème" }).click();
-  await expect(page.getByText("Thème appliqué.")).toBeVisible();
+  // The save control states what it will do and reads "À jour" once there is
+  // nothing left to save, so it is matched on either wording.
+  await page.getByRole("button", { name: /Appliquer à ma page|À jour/ }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Thème appliqué" })).toBeVisible();
 
   await page.goto(`/${slug}`);
   // Ivory is a light theme: the page background must be its near-white.

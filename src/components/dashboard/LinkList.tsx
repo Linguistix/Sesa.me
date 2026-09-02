@@ -23,7 +23,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { deleteLinkAction, reorderLinksAction, toggleLinkAction } from "@/actions/page";
 import type { EditorLink } from "./types";
-import { BLOCK_LABELS } from "@/lib/block-types";
+import { BLOCK_GLYPHS, BLOCK_LABELS } from "@/lib/block-types";
+import { Switch } from "@/components/ui/Field";
+import { EmptyState } from "@/components/ui/Panel";
 import { LinkForm } from "./LinkForm";
 
 /**
@@ -111,9 +113,10 @@ export function LinkList({
 
   if (links.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-white/15 p-8 text-center text-sm text-neutral-400">
-        Aucun bloc pour l&apos;instant. Ajoutez votre premier lien ci-dessous.
-      </p>
+      <EmptyState
+        title="Votre page est vide"
+        description="Ajoutez un premier bloc ci-dessous — un lien, un lecteur, une galerie. Vous pourrez les réordonner par glisser-déposer."
+      />
     );
   }
 
@@ -126,9 +129,19 @@ export function LinkList({
         role="status"
         aria-live="polite"
         data-reorder-state={isSaving ? "saving" : savedAt ? "saved" : "idle"}
-        className="mb-2 h-4 text-xs text-neutral-500"
+        className="mb-2 flex h-4 items-center gap-1.5 text-xs text-ink-500"
       >
-        {isSaving ? "Enregistrement de l’ordre…" : savedAt ? "Ordre enregistré." : ""}
+        {isSaving ? (
+          <>
+            <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-400" />
+            Enregistrement de l&rsquo;ordre&hellip;
+          </>
+        ) : savedAt ? (
+          <>
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-positive-500" />
+            Ordre enregistré.
+          </>
+        ) : null}
       </p>
 
       <DndContext
@@ -145,7 +158,7 @@ export function LinkList({
           items={optimisticLinks.map((l) => l.id)}
           strategy={verticalListSortingStrategy}
         >
-          <ul aria-label="Blocs de la page" className="flex flex-col gap-2">
+          <ul aria-label="Blocs de la page" className="flex flex-col gap-1.5">
             {optimisticLinks.map((link) => (
               <SortableRow
                 key={link.id}
@@ -189,82 +202,102 @@ function SortableRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={[
-        "rounded-xl border border-white/10 bg-white/[0.03]",
-        isDragging ? "z-10 opacity-90 shadow-2xl" : "",
+        "group rounded-lg bg-ink-880 ring-1 ring-inset transition-shadow duration-[120ms]",
+        isDragging ? "z-10 shadow-float ring-accent-400/40" : "ring-white/7 hover:ring-white/12",
         link.isActive ? "" : "opacity-55",
       ].join(" ")}
     >
-      <div className="flex items-center gap-2 p-3">
+      <div className="flex items-center gap-3 p-2.5">
         <button
           type="button"
-          className="cursor-grab touch-none rounded-md px-1.5 py-1 text-neutral-500 transition hover:bg-white/5 hover:text-neutral-200 active:cursor-grabbing"
+          className="cursor-grab touch-none rounded-md px-1 py-1.5 text-ink-600 transition-colors hover:bg-white/6 hover:text-ink-200 active:cursor-grabbing"
           aria-label={`Déplacer « ${link.title} ». Utilisez les flèches pour réordonner.`}
           {...attributes}
           {...listeners}
         >
-          <span aria-hidden>⠿</span>
+          <svg viewBox="0 0 10 16" aria-hidden className="h-4 w-4">
+            <circle cx="3" cy="3" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="3" r="1.2" fill="currentColor" />
+            <circle cx="3" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="3" cy="13" r="1.2" fill="currentColor" />
+            <circle cx="7" cy="13" r="1.2" fill="currentColor" />
+          </svg>
         </button>
 
+        <span
+          aria-hidden
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-ink-800 text-base ring-1 ring-inset ring-white/6"
+        >
+          {link.emoji || BLOCK_GLYPHS[link.type]}
+        </span>
+
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-neutral-100">
-            {link.emoji ? <span className="mr-1.5">{link.emoji}</span> : null}
+          <p className="flex items-center gap-1.5 truncate text-base font-medium text-ink-50">
             {link.title}
             {link.hasPassword ? (
-              <span aria-label="protégé par mot de passe" className="ml-1.5 text-xs">
-                🔒
+              <span aria-label="protégé par mot de passe" title="Protégé par mot de passe">
+                <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3 text-ink-400">
+                  <path d="M3.5 5V3.5a2.5 2.5 0 0 1 5 0V5M2.5 5h7v5h-7z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+                </svg>
               </span>
             ) : null}
           </p>
-          <p className="truncate text-xs text-neutral-500">
+          <p className="truncate text-xs text-ink-500">
             {BLOCK_LABELS[link.type]}
             {link.syncProvider ? " · synchronisé" : ""}
-            {link.url ? ` · ${link.url}` : ""}
+            {link.url ? ` · ${link.url.replace(/^https?:\/\//, "")}` : ""}
           </p>
           {link.syncError ? (
-            <p className="truncate text-xs text-amber-300">⚠ {link.syncError}</p>
+            <p className="truncate text-xs text-caution-400">{link.syncError}</p>
           ) : null}
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-400">
-          <input
-            type="checkbox"
-            checked={link.isActive}
-            onChange={(e) => {
-              const next = e.target.checked;
+        {/*
+          The row's controls only appear on hover or focus. A list of ten
+          blocks otherwise shows thirty buttons at once, and the content —
+          which is what the creator is scanning — loses to the chrome.
+        */}
+        <div className="flex items-center gap-1 opacity-0 transition-opacity duration-[120ms] focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-expanded={isEditing}
+            className="rounded-md px-2.5 py-1.5 text-xs text-ink-300 transition-colors hover:bg-white/6 hover:text-ink-50"
+          >
+            {isEditing ? "Fermer" : "Modifier"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!confirm(`Supprimer « ${link.title} » ?`)) return;
               startTransition(async () => {
-                await toggleLinkAction(link.id, next);
+                await deleteLinkAction(link.id);
               });
             }}
-            className="h-4 w-4 accent-indigo-500"
-          />
-          <span className="sr-only sm:not-sr-only">Visible</span>
-        </label>
+            aria-label={`Supprimer « ${link.title} »`}
+            className="rounded-md p-1.5 text-ink-500 transition-colors hover:bg-critical-500/12 hover:text-critical-400"
+          >
+            <svg viewBox="0 0 14 14" aria-hidden className="h-3.5 w-3.5">
+              <path d="M2.5 3.5h9M5.5 3.5V2h3v1.5M4 3.5l.5 8h5l.5-8" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
 
-        <button
-          type="button"
-          onClick={onEdit}
-          aria-expanded={isEditing}
-          className="rounded-lg px-2.5 py-1.5 text-xs text-neutral-300 transition hover:bg-white/5"
-        >
-          {isEditing ? "Fermer" : "Modifier"}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            if (!confirm(`Supprimer « ${link.title} » ?`)) return;
+        <Switch
+          checked={link.isActive}
+          label={`${link.title} — visible sur la page`}
+          onChange={(next) =>
             startTransition(async () => {
-              await deleteLinkAction(link.id);
-            });
-          }}
-          className="rounded-lg px-2.5 py-1.5 text-xs text-red-400 transition hover:bg-red-500/10"
-        >
-          Supprimer
-        </button>
+              await toggleLinkAction(link.id, next);
+            })
+          }
+        />
       </div>
 
       {isEditing ? (
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-white/8 p-3">
           <LinkForm
             mode="edit"
             link={link}

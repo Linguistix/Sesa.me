@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 import { updateFormAction } from "@/actions/forms";
 import type { ActionState } from "@/actions/auth";
 import type { FormField } from "@/lib/forms";
-import { Field, inputClass } from "./LinkForm";
+import { Field, Select, TextInput } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
 
 const EMPTY: ActionState = {};
 
@@ -51,16 +52,29 @@ export function FormEditor({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Titre du formulaire" error={state.fieldErrors?.title}>
-          <input name="title" defaultValue={form.title} maxLength={80} className={inputClass} />
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              name="title"
+              defaultValue={form.title}
+              maxLength={80}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
         </Field>
 
         <Field label="Message de confirmation" error={state.fieldErrors?.successMessage}>
-          <input
-            name="successMessage"
-            defaultValue={form.successMessage}
-            maxLength={300}
-            className={inputClass}
-          />
+          {({ id, describedBy, invalid }) => (
+            <TextInput
+              id={id}
+              name="successMessage"
+              defaultValue={form.successMessage}
+              maxLength={300}
+              aria-describedby={describedBy}
+              aria-invalid={invalid}
+            />
+          )}
         </Field>
       </div>
 
@@ -69,20 +83,24 @@ export function FormEditor({
         hint="facultatif — Brevo, Mailchimp, Zapier…"
         error={state.fieldErrors?.webhookUrl}
       >
-        <input
-          name="webhookUrl"
-          type="url"
-          defaultValue={form.webhookUrl ?? ""}
-          placeholder="https://…"
-          className={inputClass}
-        />
+        {({ id, describedBy, invalid }) => (
+          <TextInput
+            id={id}
+            name="webhookUrl"
+            type="url"
+            defaultValue={form.webhookUrl ?? ""}
+            placeholder="https://…"
+            aria-describedby={describedBy}
+            aria-invalid={invalid}
+          />
+        )}
       </Field>
 
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-xs font-medium text-neutral-400">Champs</legend>
+        <legend className="mb-1 text-xs font-medium text-ink-300">Champs</legend>
 
         {state.fieldErrors?.fields ? (
-          <p role="alert" className="text-xs text-red-400">
+          <p role="alert" className="text-xs text-critical-400">
             {state.fieldErrors.fields}
           </p>
         ) : null}
@@ -91,46 +109,44 @@ export function FormEditor({
           {fields.map((field, index) => (
             <li
               key={field.id}
-              className="flex flex-wrap items-end gap-2 rounded-lg border border-white/10 p-2"
+              className="flex flex-wrap items-end gap-2 rounded-lg p-2 ring-1 ring-inset ring-white/8"
             >
               <input type="hidden" name={`field.${index}.id`} value={field.id} />
 
               <label className="flex flex-1 flex-col gap-1">
-                <span className="text-[11px] text-neutral-500">Libellé</span>
-                <input
+                <span className="text-2xs text-ink-500">Libellé</span>
+                <TextInput
                   name={`field.${index}.label`}
                   value={field.label}
                   onChange={(e) => updateField(index, { label: e.target.value })}
                   maxLength={80}
-                  className={inputClass}
                 />
               </label>
 
               <label className="flex flex-col gap-1 sm:w-40">
-                <span className="text-[11px] text-neutral-500">Type</span>
-                <select
+                <span className="text-2xs text-ink-500">Type</span>
+                <Select
                   name={`field.${index}.type`}
                   value={field.type}
                   onChange={(e) =>
                     updateField(index, { type: e.target.value as FormField["type"] })
                   }
-                  className={inputClass}
                 >
                   {FIELD_TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
 
-              <label className="flex items-center gap-1.5 pb-2 text-xs text-neutral-400">
+              <label className="flex items-center gap-1.5 pb-2 text-xs text-ink-400">
                 <input
                   type="checkbox"
                   name={`field.${index}.required`}
                   checked={field.required}
                   onChange={(e) => updateField(index, { required: e.target.checked })}
-                  className="h-4 w-4 accent-indigo-500"
+                  className="h-4 w-4 accent-[var(--color-accent-500)]"
                 />
                 Requis
               </label>
@@ -139,7 +155,7 @@ export function FormEditor({
                 type="button"
                 onClick={() => setFields((current) => current.filter((_, i) => i !== index))}
                 disabled={fields.length === 1}
-                className="pb-2 text-xs text-red-400 transition hover:text-red-300 disabled:opacity-40"
+                className="pb-2 text-xs text-critical-400 transition hover:text-critical-500 disabled:opacity-40"
                 aria-label={`Retirer le champ ${field.label}`}
               >
                 Retirer
@@ -152,14 +168,14 @@ export function FormEditor({
           type="button"
           onClick={addField}
           disabled={fields.length >= 12}
-          className="self-start rounded-lg border border-white/15 px-3 py-1.5 text-xs text-neutral-300 transition hover:bg-white/5 disabled:opacity-40"
+          className="self-start rounded-md px-3 py-1.5 text-xs text-ink-300 ring-1 ring-inset ring-white/10 transition hover:bg-white/6 hover:text-ink-50 disabled:opacity-40"
         >
           Ajouter un champ
         </button>
       </fieldset>
 
       {state.error ? (
-        <p role="alert" className="text-sm text-red-400">
+        <p role="alert" className="text-sm text-critical-400">
           {state.error}
         </p>
       ) : null}
@@ -167,7 +183,7 @@ export function FormEditor({
       <div className="flex items-center gap-3">
         <SaveButton />
         {saved ? (
-          <span role="status" className="text-sm text-emerald-400">
+          <span role="status" className="text-sm text-positive-400">
             Formulaire enregistré.
           </span>
         ) : null}
@@ -179,12 +195,8 @@ export function FormEditor({
 function SaveButton() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
-    >
+    <Button type="submit" variant="primary" disabled={pending}>
       {pending ? "Enregistrement…" : "Enregistrer le formulaire"}
-    </button>
+    </Button>
   );
 }

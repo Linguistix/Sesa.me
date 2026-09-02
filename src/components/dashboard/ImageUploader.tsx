@@ -120,15 +120,15 @@ export function ImageUploader({
       <label
         htmlFor={`upload-${purpose}`}
         className={[
-          "inline-flex cursor-pointer items-center gap-2 self-start rounded-lg border border-white/15 px-3 py-1.5 text-xs transition",
-          busy ? "cursor-wait opacity-60" : "text-neutral-200 hover:bg-white/5",
+          "inline-flex cursor-pointer items-center gap-2 self-start rounded-md px-3 py-1.5 text-xs text-ink-200 ring-1 ring-inset ring-white/12 transition",
+          busy ? "cursor-wait opacity-60" : "hover:bg-white/5",
         ].join(" ")}
       >
         {busy ? `Téléversement ${progress.done}/${progress.total}…` : label}
       </label>
 
       {error ? (
-        <span role="alert" className="text-xs text-red-400">
+        <span role="alert" className="text-xs text-critical-400">
           {error}
         </span>
       ) : null}

@@ -27,7 +27,37 @@ export async function PublicPageView({ slug }: { slug: string }) {
           {/* Warm the font connection before the stylesheet parses. */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link rel="stylesheet" href={fontHref} />
+
+          {/*
+            The font stylesheet is loaded without blocking the first paint.
+
+            A plain `<link rel="stylesheet">` to a third party is render
+            blocking: while that request is in flight the visitor sees nothing.
+            On a good connection that is 50ms and invisible; on a bad one, or
+            during a Google Fonts incident, it is a blank page — and this page
+            is somebody's whole presence in a bio link. `media="print"` makes
+            the browser fetch the stylesheet without waiting for it, and the
+            script below applies it the moment it lands.
+
+            Nothing is lost by doing this: the URL already carries
+            `display=swap`, so text was always going to paint in the fallback
+            face first and swap when the webfont arrived. The only change is
+            that it now paints at once instead of after the round trip.
+
+            There is deliberately no `<noscript>` fallback. React 19 hoists
+            `<link rel="stylesheet">` into the document head wherever it is
+            written — including out of a `<noscript>` — so the fallback copy
+            came back as a second, render-blocking link and undid the whole
+            thing. A visitor with scripting disabled reads the page in the
+            fallback stack, which is the same thing every visitor sees for the
+            first moments anyway.
+          */}
+          <link rel="stylesheet" href={fontHref} media="print" data-sesame-font="" />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: FONT_ACTIVATION_SCRIPT,
+            }}
+          />
         </>
       ) : null}
 
@@ -50,6 +80,15 @@ export async function PublicPageView({ slug }: { slug: string }) {
     </>
   );
 }
+
+/*
+  Flips the font stylesheet from `print` to `all` once it has loaded, which is
+  the point at which applying it no longer costs a render block. Inline and
+  tiny so it runs during parse without a request of its own; `l.sheet` covers
+  the case where the stylesheet was already in the HTTP cache and finished
+  before this ran, so no load event is coming.
+*/
+const FONT_ACTIVATION_SCRIPT = `document.querySelectorAll('link[data-sesame-font]').forEach(function(l){if(l.sheet){l.media='all'}else{l.addEventListener('load',function(){l.media='all'},{once:true})}})`;
 
 /**
  * Prefers the visitor's browser languages, falling back to the page owner's

@@ -126,16 +126,30 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
           ) : null}
         </header>
 
+        {/*
+          Rhythm, not a uniform gap.
+
+          A heading belongs to the blocks under it, so it sits close to them and
+          further from what came before. With one gap for everything, a page of
+          three sections reads as nine unrelated rows — the grouping the creator
+          built is invisible.
+        */}
         <nav
           aria-label={`Liens de ${page.displayName}`}
           className={
             page.theme.layout === "grid"
-              ? "mt-4 grid w-full grid-cols-2 gap-3"
-              : "mt-4 flex w-full flex-col gap-3"
+              ? "mt-6 grid w-full grid-cols-2 gap-2.5"
+              : "mt-6 flex w-full flex-col gap-2.5"
           }
         >
-          {page.links.map((link) => (
-            <LinkBlock key={link.id} link={link} theme={page.theme} locale={page.locale} />
+          {page.links.map((link, index) => (
+            <div
+              key={link.id}
+              className={spacingFor(link, page.links[index - 1], index)}
+              style={page.theme.layout === "grid" && isFullWidth(link) ? { gridColumn: "1 / -1" } : undefined}
+            >
+              <LinkBlock link={link} theme={page.theme} locale={page.locale} />
+            </div>
           ))}
         </nav>
 
@@ -163,6 +177,42 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
   );
 }
 
+/**
+ * Extra space above a block, expressed as a class rather than a margin on the
+ * block itself so the rule lives in one place.
+ */
+function spacingFor(
+  link: RenderableLink,
+  previous: RenderableLink | undefined,
+  index: number,
+): string {
+  // A heading opens a section: push it away from the previous group, unless it
+  // is the very first thing on the page.
+  if (link.type === "HEADING" && index > 0) return "pt-5";
+
+  // Text sitting under its heading or button stays close; text following
+  // another text block gets a little air.
+  if (link.type === "TEXT" && previous?.type === "TEXT") return "pt-1.5";
+
+  // Media is a different kind of object from a row of buttons.
+  if (link.type === "GALLERY" || link.type === "EMBED" || link.type === "FORM") {
+    return index > 0 ? "pt-2" : "";
+  }
+
+  return "";
+}
+
+/** Blocks that should span both columns in the grid layout. */
+function isFullWidth(link: RenderableLink): boolean {
+  return (
+    link.type === "HEADING" ||
+    link.type === "TEXT" ||
+    link.type === "FORM" ||
+    link.type === "GALLERY" ||
+    link.type === "EMBED"
+  );
+}
+
 function LinkBlock({
   link,
   theme,
@@ -176,7 +226,7 @@ function LinkBlock({
   if (link.type === "HEADING") {
     return (
       <h2
-        className="mt-4 w-full text-sm font-semibold uppercase tracking-widest text-[var(--sesame-muted)]"
+        className="w-full text-xs font-semibold uppercase tracking-[0.14em] text-[var(--sesame-muted)]"
         style={{ fontFamily: "var(--sesame-font-display)" }}
       >
         {link.title}

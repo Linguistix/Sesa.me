@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { type Page } from "@playwright/test";
 
 /** Phase 2: analytics, short links, plan gating, GDPR. */
 
@@ -67,7 +68,11 @@ test("a free account cannot export CSV, and the endpoint refuses too", async ({ 
   await signUp(page, suffix);
 
   await page.goto("/dashboard/analytics");
-  await expect(page.getByText("Export CSV — réservé au plan Pro")).toBeVisible();
+  // Matched loosely: the exact wording of the "this is a Pro feature" label is
+  // a copy decision, but a free account must be told, and must not be handed a
+  // download link that would only 403.
+  await expect(page.getByText(/Export CSV.*Pro/)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Export CSV/ })).toHaveCount(0);
 
   const response = await page.request.get("/api/analytics/export?days=30");
   expect(response.status()).toBe(403);

@@ -1,6 +1,7 @@
 import type { Theme } from "./schema";
 import { ALLOWED_FONTS } from "./schema";
 import { buttonLabel } from "./sanitize";
+import { adjustForContrast } from "./contrast";
 
 const WEIGHT_MAP: Record<Theme["typography"]["weight"], number> = {
   light: 300,
@@ -47,6 +48,17 @@ export function themeToCssVars(theme: Theme): Record<string, string> {
     "--sesame-accent": palette.accent,
     "--sesame-text": palette.text_primary,
     "--sesame-muted": palette.text_muted,
+    /*
+      Error text, repaired against this page's own background.
+
+      A fixed red is the obvious choice and the wrong one: #f87171 reads
+      cleanly on a dark theme and disappears on an ivory one, so the message
+      telling a visitor their e-mail address is invalid would be the least
+      legible text on the page. Passing it through the same repair every other
+      pair gets keeps the hue — it still reads as an error — while guaranteeing
+      it clears AA on whatever background the creator chose.
+    */
+    "--sesame-critical": adjustForContrast("#F87171", palette.background),
     "--sesame-font-display": `"${typography.display_font}", ${fallbackStack(typography.display_font)}`,
     "--sesame-font-body": `"${typography.body_font}", ${fallbackStack(typography.body_font)}`,
     "--sesame-weight": String(WEIGHT_MAP[typography.weight]),

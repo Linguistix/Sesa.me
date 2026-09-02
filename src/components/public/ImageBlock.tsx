@@ -26,7 +26,15 @@ export function ImageBlock({
       loading="lazy"
       decoding="async"
       className="w-full object-cover"
-      style={{ borderRadius: "var(--sesame-radius)" }}
+      style={{
+        borderRadius: "var(--sesame-radius)",
+        // Holds the space and paints it in the theme's colour while loading.
+        background: "var(--sesame-surface)",
+        minHeight: "6rem",
+      }}
+      onError={(event) => {
+        event.currentTarget.style.visibility = "hidden";
+      }}
     />
   );
 

@@ -7,6 +7,7 @@ import { getDomain } from "@/server/domains";
 import { TXT_RECORD_NAME } from "@/lib/domains";
 import { DomainForm } from "@/components/dashboard/DomainForm";
 import { can } from "@/lib/plans";
+import { PageHeader, PageBody } from "@/components/ui/Panel";
 
 export const metadata = { title: "Domaine personnalisé" };
 
@@ -23,12 +24,16 @@ export default async function DomainPage() {
   const domain = await getDomain(page.id);
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="mb-1 text-lg font-semibold">Domaine personnalisé</h1>
-      <p className="mb-6 text-sm text-neutral-500">
-        Servez votre page depuis votre propre nom de domaine, par exemple{" "}
-        <code>liens.mon-site.fr</code>.
-      </p>
+    <PageBody>
+      <PageHeader
+        title="Domaine personnalisé"
+        description={
+          <>
+            Servez votre page depuis votre propre nom de domaine, par exemple{" "}
+            <code>liens.mon-site.fr</code>.
+          </>
+        }
+      />
 
       {can(plan, "canUseCustomDomain") ? (
         <DomainForm
@@ -44,16 +49,16 @@ export default async function DomainPage() {
           }
         />
       ) : (
-        <p className="rounded-xl border border-white/10 bg-white/[0.02] p-4 text-sm text-neutral-400">
+        <p className="rounded-xl bg-ink-880 p-4 text-sm text-ink-300 ring-1 ring-inset ring-white/7">
           Le domaine personnalisé fait partie du plan Pro.{" "}
           <Link
             href="/dashboard/billing"
-            className="text-indigo-400 underline-offset-4 hover:underline"
+            className="text-accent-400 underline-offset-4 hover:underline"
           >
             Voir les plans
           </Link>
         </p>
       )}
-    </div>
+    </PageBody>
   );
 }

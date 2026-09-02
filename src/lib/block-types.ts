@@ -34,3 +34,20 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   IMAGE: "Image cliquable",
   FORM: "Formulaire",
 };
+
+/**
+ * A glyph per block kind, shown when a block has no emoji of its own.
+ *
+ * An empty square in a list of ten rows makes the list look broken; a
+ * consistent placeholder makes the kinds scannable at a glance.
+ */
+export const BLOCK_GLYPHS: Record<BlockType, string> = {
+  LINK: "\u2197",
+  SOCIAL: "\u25CE",
+  HEADING: "\u00B6",
+  TEXT: "\u201C",
+  EMBED: "\u25B6",
+  GALLERY: "\u25A6",
+  IMAGE: "\u25A3",
+  FORM: "\u2709",
+};

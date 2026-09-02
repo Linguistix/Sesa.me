@@ -76,9 +76,15 @@ export function LinkButton({
       ) : null}
       <span className="flex-1 text-center">{link.title}</span>
       {link.isLocked ? (
-        <span aria-hidden className="text-sm opacity-70">
-          🔒
-        </span>
+        <svg viewBox="0 0 12 12" aria-hidden className="h-3.5 w-3.5 shrink-0 opacity-60">
+          <path
+            d="M3.5 5V3.5a2.5 2.5 0 0 1 5 0V5M2.5 5h7v5h-7z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinejoin="round"
+          />
+        </svg>
       ) : null}
     </>
   );
@@ -185,7 +191,7 @@ function UnlockDialog({
         />
 
         {error ? (
-          <p id={`unlock-error-${link.id}`} role="alert" className="mt-2 text-sm text-red-400">
+          <p id={`unlock-error-${link.id}`} role="alert" className="mt-2 text-sm text-[var(--sesame-critical)]">
             {error}
           </p>
         ) : null}

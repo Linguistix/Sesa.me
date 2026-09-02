@@ -1,27 +1,67 @@
 import type { ReactNode } from "react";
 
-/** A phone-shaped frame for the live preview — mobile is where these pages are seen. */
-export function PhonePreview({ children, href }: { children: ReactNode; href?: string }) {
+/**
+ * The live preview, presented as a device on a stage.
+ *
+ * This is the only saturated thing on the screen — it is the creator's own
+ * page — so the chrome around it stays neutral and the frame does the work of
+ * saying "this is the real thing, at real size". The glow behind it is pulled
+ * from the page's own accent, which makes each theme feel present in the room
+ * rather than pasted into a slot.
+ */
+export function PhonePreview({
+  children,
+  href,
+  label = "Aperçu",
+}: {
+  children: ReactNode;
+  href?: string;
+  label?: string;
+}) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative h-[640px] w-[320px] shrink-0 overflow-hidden rounded-[2.25rem] border-[10px] border-neutral-800 bg-black shadow-2xl">
+    <figure className="flex flex-col items-center gap-4">
+      <div className="relative">
+        {/* Ambient light from the previewed theme's own accent. */}
         <div
           aria-hidden
-          className="absolute left-1/2 top-0 z-20 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-neutral-800"
+          className="absolute -inset-8 -z-10 rounded-[3rem] opacity-40 blur-3xl"
+          style={{
+            background:
+              "radial-gradient(60% 50% at 50% 30%, var(--sesame-accent, #7c6bf5), transparent 70%)",
+          }}
         />
-        <div className="h-full w-full overflow-y-auto overscroll-contain">{children}</div>
+
+        <div className="relative h-[652px] w-[322px] rounded-[2.5rem] bg-ink-800 p-[3px] shadow-float ring-1 ring-inset ring-white/12">
+          <div className="relative h-full w-full overflow-hidden rounded-[2.35rem] bg-ink-950">
+            {/* Status-bar notch, so the frame reads as a phone at a glance. */}
+            <div
+              aria-hidden
+              className="absolute left-1/2 top-2 z-20 h-[22px] w-[92px] -translate-x-1/2 rounded-full bg-black/85"
+            />
+            <div className="h-full w-full overflow-y-auto overscroll-contain">{children}</div>
+          </div>
+        </div>
       </div>
 
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs text-neutral-500 underline-offset-4 hover:text-neutral-300 hover:underline"
-        >
-          Ouvrir la vraie page ↗
-        </a>
-      ) : null}
-    </div>
+      <figcaption className="flex items-center gap-3 text-xs">
+        <span className="text-ink-500">{label}</span>
+        {href ? (
+          <>
+            <span aria-hidden className="h-3 w-px bg-white/10" />
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-ink-300 transition-colors hover:bg-white/6 hover:text-ink-50"
+            >
+              Ouvrir la vraie page
+              <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3">
+                <path d="M4 2h6v6M10 2 4.5 7.5M8 9.5v.5H2V4h.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </a>
+          </>
+        ) : null}
+      </figcaption>
+    </figure>
   );
 }

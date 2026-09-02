@@ -66,7 +66,14 @@ export function GalleryBlock({
               type="button"
               onClick={() => setOpenIndex(index)}
               className="block w-full overflow-hidden"
-              style={{ borderRadius: "var(--sesame-radius)" }}
+              style={{
+                borderRadius: "var(--sesame-radius)",
+                // Reserves the square before the image lands, so a slow
+                // gallery does not shove the rest of the page down as it
+                // loads — and paints the gap in the theme's own colour.
+                background: "var(--sesame-surface)",
+                aspectRatio: "1 / 1",
+              }}
               aria-label={`${t("gallery.open")} ${index + 1}/${images.length}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -75,7 +82,12 @@ export function GalleryBlock({
                 alt={`${title} — ${index + 1}`}
                 loading="lazy"
                 decoding="async"
-                className="aspect-square w-full object-cover transition-transform duration-200 hover:scale-105"
+                className="h-full w-full object-cover transition-transform duration-200 hover:scale-105"
+                onError={(event) => {
+                  // A dead URL leaves the themed square rather than a
+                  // broken-image glyph in the middle of someone's page.
+                  event.currentTarget.style.visibility = "hidden";
+                }}
               />
             </button>
           </li>

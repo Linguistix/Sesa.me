@@ -7,8 +7,10 @@ import { ALLOWED_FONTS, type Theme } from "@/lib/theme/schema";
 import { auditContrast } from "@/lib/theme/sanitize";
 import { PageRenderer, type RenderablePage } from "@/components/public/PageRenderer";
 import { PhonePreview } from "./PhonePreview";
-import { Field, inputClass } from "./LinkForm";
 import { AiDesigner } from "./AiDesigner";
+import { Field, Select } from "@/components/ui/Field";
+import { Button } from "@/components/ui/Button";
+import { Panel, SectionHeader } from "@/components/ui/Panel";
 
 /**
  * Theme editing with an instant local preview.
@@ -31,6 +33,7 @@ export function ThemePicker({
   const [saved, setSaved] = useState(false);
 
   const failures = auditContrast(theme);
+  const dirty = JSON.stringify(theme) !== JSON.stringify(initialTheme);
 
   function patch(update: Partial<Theme>) {
     setTheme((current) => ({ ...current, ...update }));
@@ -45,8 +48,8 @@ export function ThemePicker({
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="flex flex-col gap-8">
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_auto] xl:gap-12">
+      <div className="flex min-w-0 flex-col gap-10">
         <AiDesigner
           configured={ai.configured}
           initialRemaining={ai.remaining}
@@ -58,247 +61,355 @@ export function ThemePicker({
         />
 
         <section aria-labelledby="presets-heading">
-          <h2 id="presets-heading" className="mb-3 text-sm font-medium text-neutral-400">
-            Thèmes préconçus
-          </h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {THEME_PRESETS.map((preset) => (
-              <li key={preset.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTheme(preset.theme);
-                    setSaved(false);
-                  }}
-                  className="w-full overflow-hidden rounded-xl border border-white/10 text-left transition hover:border-white/30 focus-visible:border-indigo-400"
-                  aria-label={`Appliquer le thème ${preset.name}`}
-                >
-                  <span
-                    className="flex h-16 items-end gap-1 p-2"
-                    style={{ background: preset.theme.palette.background }}
+          <SectionHeader
+            id="presets-heading"
+            title="Thèmes"
+            description="Un point de départ. Tout reste ajustable ensuite."
+          />
+
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {THEME_PRESETS.map((preset) => {
+              const active = JSON.stringify(preset.theme) === JSON.stringify(theme);
+              return (
+                <li key={preset.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme(preset.theme);
+                      setSaved(false);
+                    }}
+                    aria-label={`Appliquer le thème ${preset.name}`}
+                    aria-pressed={active}
+                    className={[
+                      "group w-full overflow-hidden rounded-lg text-left transition-all duration-[120ms]",
+                      "ring-1 ring-inset",
+                      active
+                        ? "ring-2 ring-accent-400"
+                        : "ring-white/8 hover:ring-white/20",
+                    ].join(" ")}
                   >
-                    <Swatch color={preset.theme.palette.accent} />
-                    <Swatch color={preset.theme.palette.surface} />
-                    <Swatch color={preset.theme.palette.text_primary} />
-                  </span>
-                  <span className="block px-3 py-2 text-xs text-neutral-300">{preset.name}</span>
-                </button>
-              </li>
-            ))}
+                    {/*
+                      A miniature of the real thing rather than three swatches:
+                      a creator picks a theme by how the page looks, and the
+                      shape of the buttons is half of that.
+                    */}
+                    <span
+                      className="flex h-24 flex-col items-center justify-center gap-1.5 px-4"
+                      style={{
+                        background:
+                          preset.theme.background_effect.kind === "gradient"
+                            ? `linear-gradient(${preset.theme.background_effect.angle}deg, ${preset.theme.palette.background}, ${preset.theme.background_effect.secondary ?? preset.theme.palette.surface})`
+                            : preset.theme.palette.background,
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        className="h-5 w-5 shrink-0"
+                        style={{
+                          background: preset.theme.palette.accent,
+                          borderRadius:
+                            preset.theme.avatar_shape === "square"
+                              ? "2px"
+                              : preset.theme.avatar_shape === "rounded"
+                                ? "6px"
+                                : "9999px",
+                        }}
+                      />
+                      <span
+                        aria-hidden
+                        className="h-1 w-10 rounded-full"
+                        style={{ background: preset.theme.palette.text_primary, opacity: 0.8 }}
+                      />
+                      {[0, 1].map((i) => (
+                        <span
+                          key={i}
+                          aria-hidden
+                          className="h-3.5 w-full"
+                          style={{
+                            background:
+                              preset.theme.button_style.fill === "solid"
+                                ? preset.theme.palette.accent
+                                : preset.theme.palette.surface,
+                            border:
+                              preset.theme.button_style.fill === "outline"
+                                ? `1px solid ${preset.theme.palette.accent}`
+                                : "1px solid transparent",
+                            borderRadius:
+                              preset.theme.button_style.shape === "pill"
+                                ? "9999px"
+                                : preset.theme.button_style.shape === "square"
+                                  ? "0"
+                                  : "4px",
+                          }}
+                        />
+                      ))}
+                    </span>
+
+                    <span className="flex items-center justify-between gap-2 bg-ink-880 px-3 py-2">
+                      <span className="truncate text-xs text-ink-200">{preset.name}</span>
+                      {active ? (
+                        <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3 shrink-0 text-accent-400">
+                          <path d="m2.5 6.5 2.5 2.5 4.5-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
 
         <section aria-labelledby="colors-heading">
-          <h2 id="colors-heading" className="mb-3 text-sm font-medium text-neutral-400">
-            Couleurs
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {(
-              [
-                ["background", "Fond"],
-                ["surface", "Surface"],
-                ["accent", "Accent"],
-                ["text_primary", "Texte"],
-                ["text_muted", "Texte secondaire"],
-              ] as const
-            ).map(([key, label]) => (
-              <Field key={key} label={label}>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={theme.palette[key]}
-                    onChange={(e) => patch({ palette: { ...theme.palette, [key]: e.target.value } })}
-                    className="h-9 w-9 shrink-0 cursor-pointer rounded border border-white/15 bg-transparent"
-                    aria-label={label}
-                  />
-                  <input
-                    value={theme.palette[key]}
-                    onChange={(e) => patch({ palette: { ...theme.palette, [key]: e.target.value } })}
-                    className={inputClass}
-                  />
-                </div>
-              </Field>
-            ))}
-          </div>
+          <SectionHeader id="colors-heading" title="Couleurs" />
 
-          {failures.length > 0 ? (
-            <div
-              role="status"
-              className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200"
-            >
-              <p className="font-medium">Contraste insuffisant (WCAG AA) :</p>
-              <ul className="mt-1 list-inside list-disc">
-                {failures.map((f) => (
-                  <li key={f.pair}>
-                    {f.pair} — {f.ratio}:1 (minimum {f.required}:1)
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-1 opacity-80">
-                Ces couleurs seront ajustées automatiquement à l&apos;enregistrement.
-              </p>
+          <Panel inset>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {(
+                [
+                  ["background", "Fond"],
+                  ["surface", "Surface"],
+                  ["accent", "Accent"],
+                  ["text_primary", "Texte"],
+                  ["text_muted", "Texte secondaire"],
+                ] as const
+              ).map(([key, label]) => (
+                <Field key={key} label={label}>
+                  {({ id }) => (
+                    <div className="flex items-center gap-2">
+                      <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md ring-1 ring-inset ring-white/12">
+                        <input
+                          type="color"
+                          value={theme.palette[key]}
+                          onChange={(e) =>
+                            patch({ palette: { ...theme.palette, [key]: e.target.value } })
+                          }
+                          aria-label={`${label} — sélecteur de couleur`}
+                          className="absolute -inset-2 h-[calc(100%+1rem)] w-[calc(100%+1rem)] cursor-pointer border-0 bg-transparent p-0"
+                        />
+                      </span>
+                      <input
+                        id={id}
+                        value={theme.palette[key]}
+                        onChange={(e) =>
+                          patch({ palette: { ...theme.palette, [key]: e.target.value } })
+                        }
+                        spellCheck={false}
+                        className="h-9 w-full min-w-0 rounded-md bg-ink-900 px-3 font-mono text-xs uppercase text-ink-100 ring-1 ring-inset ring-white/10 outline-none transition focus:ring-2 focus:ring-accent-500"
+                      />
+                    </div>
+                  )}
+                </Field>
+              ))}
             </div>
-          ) : null}
+
+            {failures.length > 0 ? (
+              <div
+                role="status"
+                className="mt-4 rounded-md bg-caution-500/10 p-3 text-xs text-caution-400 ring-1 ring-inset ring-caution-400/25"
+              >
+                <p className="font-medium">Contraste insuffisant (WCAG AA)</p>
+                <ul className="mt-1.5 space-y-0.5">
+                  {failures.map((f) => (
+                    <li key={f.pair} className="tabular">
+                      {f.pair} — {f.ratio}:1 (minimum {f.required}:1)
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 opacity-80">
+                  Ces couleurs seront ajustées automatiquement à l&apos;enregistrement.
+                </p>
+              </div>
+            ) : null}
+          </Panel>
         </section>
 
         <section aria-labelledby="type-heading">
-          <h2 id="type-heading" className="mb-3 text-sm font-medium text-neutral-400">
-            Typographie
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Police des titres">
-              <select
-                value={theme.typography.display_font}
-                onChange={(e) =>
-                  patch({
-                    typography: { ...theme.typography, display_font: e.target.value as Theme["typography"]["display_font"] },
-                  })
-                }
-                className={inputClass}
-              >
-                {ALLOWED_FONTS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          <SectionHeader id="type-heading" title="Typographie" />
+          <Panel inset>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Police des titres">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.typography.display_font}
+                    onChange={(e) =>
+                      patch({
+                        typography: {
+                          ...theme.typography,
+                          display_font: e.target.value as Theme["typography"]["display_font"],
+                        },
+                      })
+                    }
+                  >
+                    {ALLOWED_FONTS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
 
-            <Field label="Police du texte">
-              <select
-                value={theme.typography.body_font}
-                onChange={(e) =>
-                  patch({
-                    typography: { ...theme.typography, body_font: e.target.value as Theme["typography"]["body_font"] },
-                  })
-                }
-                className={inputClass}
-              >
-                {ALLOWED_FONTS.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-            </Field>
+              <Field label="Police du texte">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.typography.body_font}
+                    onChange={(e) =>
+                      patch({
+                        typography: {
+                          ...theme.typography,
+                          body_font: e.target.value as Theme["typography"]["body_font"],
+                        },
+                      })
+                    }
+                  >
+                    {ALLOWED_FONTS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </Field>
 
-            <Field label="Graisse">
-              <select
-                value={theme.typography.weight}
-                onChange={(e) =>
-                  patch({
-                    typography: { ...theme.typography, weight: e.target.value as Theme["typography"]["weight"] },
-                  })
-                }
-                className={inputClass}
-              >
-                <option value="light">Fine</option>
-                <option value="regular">Normale</option>
-                <option value="medium">Moyenne</option>
-                <option value="bold">Grasse</option>
-              </select>
-            </Field>
-          </div>
+              <Field label="Graisse">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.typography.weight}
+                    onChange={(e) =>
+                      patch({
+                        typography: {
+                          ...theme.typography,
+                          weight: e.target.value as Theme["typography"]["weight"],
+                        },
+                      })
+                    }
+                  >
+                    <option value="light">Fine</option>
+                    <option value="regular">Normale</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="bold">Grasse</option>
+                  </Select>
+                )}
+              </Field>
+            </div>
+          </Panel>
         </section>
 
         <section aria-labelledby="buttons-heading">
-          <h2 id="buttons-heading" className="mb-3 text-sm font-medium text-neutral-400">
-            Boutons et mise en page
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Forme">
-              <select
-                value={theme.button_style.shape}
-                onChange={(e) =>
-                  patch({
-                    button_style: { ...theme.button_style, shape: e.target.value as Theme["button_style"]["shape"] },
-                  })
-                }
-                className={inputClass}
-              >
-                <option value="rounded">Arrondi</option>
-                <option value="pill">Pilule</option>
-                <option value="square">Carré</option>
-              </select>
-            </Field>
+          <SectionHeader id="buttons-heading" title="Boutons et mise en page" />
+          <Panel inset>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Forme">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.button_style.shape}
+                    onChange={(e) =>
+                      patch({
+                        button_style: {
+                          ...theme.button_style,
+                          shape: e.target.value as Theme["button_style"]["shape"],
+                        },
+                      })
+                    }
+                  >
+                    <option value="rounded">Arrondi</option>
+                    <option value="pill">Pilule</option>
+                    <option value="square">Carré</option>
+                  </Select>
+                )}
+              </Field>
 
-            <Field label="Remplissage">
-              <select
-                value={theme.button_style.fill}
-                onChange={(e) =>
-                  patch({
-                    button_style: { ...theme.button_style, fill: e.target.value as Theme["button_style"]["fill"] },
-                  })
-                }
-                className={inputClass}
-              >
-                <option value="solid">Plein</option>
-                <option value="outline">Contour</option>
-                <option value="glass">Verre</option>
-              </select>
-            </Field>
+              <Field label="Remplissage">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.button_style.fill}
+                    onChange={(e) =>
+                      patch({
+                        button_style: {
+                          ...theme.button_style,
+                          fill: e.target.value as Theme["button_style"]["fill"],
+                        },
+                      })
+                    }
+                  >
+                    <option value="solid">Plein</option>
+                    <option value="outline">Contour</option>
+                    <option value="glass">Verre</option>
+                  </Select>
+                )}
+              </Field>
 
-            <Field label="Disposition">
-              <select
-                value={theme.layout}
-                onChange={(e) => patch({ layout: e.target.value as Theme["layout"] })}
-                className={inputClass}
-              >
-                <option value="centered">Centré</option>
-                <option value="left">Aligné à gauche</option>
-                <option value="grid">Grille</option>
-              </select>
-            </Field>
-          </div>
+              <Field label="Disposition">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={theme.layout}
+                    onChange={(e) => patch({ layout: e.target.value as Theme["layout"] })}
+                  >
+                    <option value="centered">Centré</option>
+                    <option value="left">Aligné à gauche</option>
+                    <option value="grid">Grille</option>
+                  </Select>
+                )}
+              </Field>
+            </div>
 
-          <div className="mt-3 flex flex-wrap gap-4">
-            <Toggle
-              label="Ombre portée"
-              checked={theme.button_style.shadow}
-              onChange={(v) => patch({ button_style: { ...theme.button_style, shadow: v } })}
-            />
-            <Toggle
-              label="Bordure"
-              checked={theme.button_style.border}
-              onChange={(v) => patch({ button_style: { ...theme.button_style, border: v } })}
-            />
-          </div>
+            <div className="mt-4 flex flex-wrap gap-5">
+              <Toggle
+                label="Ombre portée"
+                checked={theme.button_style.shadow}
+                onChange={(v) => patch({ button_style: { ...theme.button_style, shadow: v } })}
+              />
+              <Toggle
+                label="Bordure"
+                checked={theme.button_style.border}
+                onChange={(v) => patch({ button_style: { ...theme.button_style, border: v } })}
+              />
+            </div>
+          </Panel>
         </section>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={save}
-            disabled={pending}
-            className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
-          >
-            {pending ? "Enregistrement…" : "Enregistrer le thème"}
-          </button>
-          {saved ? (
-            <span role="status" className="text-sm text-emerald-400">
-              Thème appliqué.
-            </span>
-          ) : null}
-        </div>
       </div>
 
-      <aside className="lg:sticky lg:top-20 lg:h-fit">
-        <h2 className="mb-3 text-sm font-medium text-neutral-400">Aperçu en direct</h2>
-        <PhonePreview>
+      <aside className="lg:sticky lg:top-32">
+        <PhonePreview label="Aperçu en direct">
           <PageRenderer preview page={{ ...previewPage, theme }} />
         </PhonePreview>
+
+        {/*
+          The save control lives with the preview, not at the bottom of a long
+          column of settings — that is where the eye is when a change lands.
+        */}
+        <div className="mt-5 flex flex-col items-center gap-2">
+          <Button
+            type="button"
+            variant="primary"
+            size="lg"
+            onClick={save}
+            disabled={pending || !dirty}
+            className="w-full"
+          >
+            {pending ? "Enregistrement…" : dirty ? "Appliquer à ma page" : "À jour"}
+          </Button>
+
+          {saved && !dirty ? (
+            <span role="status" className="flex items-center gap-1.5 text-xs text-positive-400">
+              <svg viewBox="0 0 12 12" aria-hidden className="h-3 w-3">
+                <path d="m2.5 6.5 2.5 2.5 4.5-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Thème appliqué
+            </span>
+          ) : dirty ? (
+            <span className="text-xs text-ink-500">Modifications non enregistrées</span>
+          ) : null}
+        </div>
       </aside>
     </div>
-  );
-}
-
-function Swatch({ color }: { color: string }) {
-  return (
-    <span
-      aria-hidden
-      className="h-5 w-5 rounded-full border border-black/20"
-      style={{ background: color }}
-    />
   );
 }
 
@@ -312,12 +423,12 @@ function Toggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-300">
+    <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-200">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-indigo-500"
+        className="h-4 w-4 rounded accent-[var(--color-accent-500)]"
       />
       {label}
     </label>

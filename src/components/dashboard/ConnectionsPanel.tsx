@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { disconnectAction, syncNowAction } from "@/actions/connections";
+import { Panel, SectionHeader, Badge, EmptyState } from "@/components/ui/Panel";
+import { Button, ButtonAnchor } from "@/components/ui/Button";
 
 export interface ConnectionRow {
   provider: string;
@@ -31,88 +33,93 @@ export function ConnectionsPanel({
   const [result, setResult] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-col gap-8">
-      <section aria-labelledby="connected-heading">
-        <h2 id="connected-heading" className="mb-3 text-sm font-medium text-neutral-400">
-          Vos comptes
-        </h2>
+    <div className="flex flex-col gap-5">
+      <Panel className="p-5" aria-labelledby="connected-heading">
+        <SectionHeader
+          id="connected-heading"
+          title="Vos comptes"
+          description="Un compte connecté tient les blocs correspondants à jour tout seul."
+        />
 
         {connections.length === 0 && availableProviders.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-white/15 p-6 text-center text-sm text-neutral-500">
-            Aucun fournisseur configuré sur cette instance.
-          </p>
+          <EmptyState
+            title="Aucun fournisseur configuré"
+            description="Renseignez des identifiants OAuth sur cette instance pour proposer des connexions."
+          />
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             {connections.map((connection) => (
               <li
                 key={connection.provider}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
+                className="flex flex-wrap items-center gap-3 border-t border-white/6 py-3 first:border-t-0 first:pt-0"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-neutral-200">{connection.label}</p>
-                  <p className="truncate text-xs text-neutral-500">
+                  <p className="text-base text-ink-100">{connection.label}</p>
+                  <p className="truncate text-xs text-ink-400">
                     {connection.accountLabel ?? "Compte connecté"}
                   </p>
                 </div>
 
-                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
-                  Connecté
-                </span>
+                <Badge tone="positive">Connecté</Badge>
 
-                <button
+                <Button
                   type="button"
+                  variant="danger"
+                  size="sm"
                   disabled={pending}
                   onClick={() =>
                     startTransition(async () => {
                       await disconnectAction(connection.provider);
                     })
                   }
-                  className="rounded-lg px-2.5 py-1.5 text-xs text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
                 >
                   Déconnecter
-                </button>
+                </Button>
               </li>
             ))}
 
             {availableProviders.map((provider) => (
               <li
                 key={provider.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
+                className="flex flex-wrap items-center gap-3 border-t border-white/6 py-3 first:border-t-0 first:pt-0"
               >
-                <p className="min-w-0 flex-1 text-sm text-neutral-200">{provider.label}</p>
+                <p className="min-w-0 flex-1 text-base text-ink-300">{provider.label}</p>
 
                 {/* A link, not a fetch: the OAuth flow is a top-level redirect
                     to the provider, which an XHR cannot perform. */}
-                <a
+                <ButtonAnchor
                   href={`/api/connections/${provider.id}/start`}
-                  className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-400"
+                  variant="secondary"
+                  size="sm"
                 >
                   Connecter
-                </a>
+                </ButtonAnchor>
               </li>
             ))}
           </ul>
         )}
 
         {unconfiguredProviders.length > 0 ? (
-          <p className="mt-3 text-xs text-neutral-600">
+          <p className="mt-4 border-t border-white/6 pt-3 text-xs text-ink-400">
             Non configurés sur cette instance : {unconfiguredProviders.join(", ")}. Renseignez les
             identifiants OAuth correspondants pour les activer.
           </p>
         ) : null}
-      </section>
+      </Panel>
 
       {syncedBlocks.length > 0 ? (
-        <section aria-labelledby="synced-heading">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 id="synced-heading" className="text-sm font-medium text-neutral-400">
-              Blocs synchronisés
-            </h2>
-
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
+        <Panel className="p-5" aria-labelledby="synced-heading">
+          <SectionHeader
+            id="synced-heading"
+            title="Blocs synchronisés"
+            description="Ces blocs reprennent automatiquement les données du compte lié."
+            action={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={pending}
+                onClick={() =>
                 startTransition(async () => {
                   setResult(null);
                   const outcome = await syncNowAction();
@@ -122,32 +129,29 @@ export function ConnectionsPanel({
                       : outcome.changed
                         ? `${outcome.changed} bloc(s) mis à jour.`
                         : "Tout est déjà à jour.",
-                  );
-                })
-              }
-              className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-white/5 disabled:opacity-50"
-            >
-              {pending ? "Synchronisation…" : "Synchroniser maintenant"}
-            </button>
-          </div>
+                    );
+                  })
+                }
+              >
+                {pending ? "Synchronisation…" : "Synchroniser maintenant"}
+              </Button>
+            }
+          />
 
           {result ? (
-            <p role="status" className="mb-3 text-xs text-neutral-400">
+            <p role="status" className="mb-3 text-xs text-ink-300">
               {result}
             </p>
           ) : null}
 
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col">
             {syncedBlocks.map((block) => (
-              <li
-                key={block.id}
-                className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
-              >
-                <p className="text-sm text-neutral-200">{block.title}</p>
+              <li key={block.id} className="border-t border-white/6 py-3 first:border-t-0 first:pt-0">
+                <p className="text-base text-ink-100">{block.title}</p>
                 {block.syncError ? (
-                  <p className="mt-0.5 text-xs text-amber-300">⚠ {block.syncError}</p>
+                  <p className="mt-0.5 text-xs text-caution-400">⚠ {block.syncError}</p>
                 ) : (
-                  <p className="mt-0.5 text-xs text-neutral-500">
+                  <p className="mt-0.5 text-xs text-ink-400">
                     {block.syncedAt
                       ? `Mis à jour ${new Intl.DateTimeFormat("fr-FR", {
                           dateStyle: "medium",
@@ -159,7 +163,7 @@ export function ConnectionsPanel({
               </li>
             ))}
           </ul>
-        </section>
+        </Panel>
       ) : null}
     </div>
   );

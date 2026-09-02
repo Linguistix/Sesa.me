@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "./fixtures";
+import { type Page } from "@playwright/test";
 
 /** Direct-to-storage uploads (presigned PUT straight to the bucket). */
 
@@ -147,7 +148,9 @@ test("the uploader appears in the editor and sets the avatar field", async ({ pa
   await expect(field).toHaveValue(/\/uploads\/.+\.png$/, { timeout: 15_000 });
 
   await page.getByRole("button", { name: "Enregistrer" }).click();
-  await expect(page.getByText("Enregistré.")).toBeVisible();
+  // The confirmation is a live region; asserting on the role rather than the
+  // exact sentence keeps this test about "the save was confirmed".
+  await expect(page.getByRole("status")).toContainText("Enregistré");
 
   // And it renders on the public page.
   await page.goto(`/up-${suffix}`);

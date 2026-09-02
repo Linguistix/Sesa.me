@@ -18,6 +18,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
+    // Public pages link a Google Fonts stylesheet. Letting the suite reach out
+    // to it makes every run depend on the network: requests that hang push a
+    // page load past the test timeout and the failure looks like a product
+    // bug. The blocking lives in `e2e/fixtures.ts`, applied per page.
     // Most traffic to these pages is mobile, so that is what we test.
     ...devices["Pixel 7"],
   },

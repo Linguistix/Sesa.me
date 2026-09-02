@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { createShortLinkAction, deleteShortLinkAction } from "@/actions/billing";
+import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Field";
 
 export interface ShortLinkRow {
   id: string;
@@ -37,66 +39,60 @@ export function ShortLinkManager({
   return (
     <div className="flex flex-col gap-4">
       {shortLinks.length > 0 ? (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col">
           {shortLinks.map((short) => (
             <li
               key={short.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3"
+              className="group flex flex-wrap items-center gap-3 border-t border-white/6 py-3 first:border-t-0 first:pt-0"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm text-neutral-200">{short.title}</p>
-                <p className="truncate text-xs text-neutral-500">
+                <p className="truncate text-base text-ink-100">{short.title}</p>
+                <p className="truncate font-mono text-xs text-ink-400">
                   {baseUrl}/{short.code}
                 </p>
               </div>
 
-              <span className="text-sm tabular-nums text-neutral-400">
+              <span className="tabular shrink-0 text-sm text-ink-300">
                 {short.clicks} clic{short.clicks === 1 ? "" : "s"}
               </span>
 
-              <button
-                type="button"
-                onClick={() => copy(short.code)}
-                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-neutral-200 transition hover:bg-white/5"
-              >
-                {copiedCode === short.code ? "Copié ✓" : "Copier"}
-              </button>
+              <Button type="button" variant="secondary" size="sm" onClick={() => copy(short.code)}>
+                {copiedCode === short.code ? "Copié" : "Copier"}
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="danger"
+                size="sm"
                 onClick={() =>
                   startTransition(async () => {
                     await deleteShortLinkAction(short.id);
                   })
                 }
-                className="rounded-lg px-2.5 py-1.5 text-xs text-red-400 transition hover:bg-red-500/10"
               >
                 Supprimer
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
       ) : null}
 
       {available.length > 0 ? (
-        <div className="flex flex-wrap items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2 border-t border-white/6 pt-4">
           <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-xs font-medium text-neutral-400">Raccourcir un lien</span>
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              className="w-full rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-indigo-400"
-            >
+            <span className="text-xs font-medium text-ink-300">Raccourcir un lien</span>
+            <Select value={selected} onChange={(e) => setSelected(e.target.value)}>
               {available.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.title}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
-          <button
+          <Button
             type="button"
+            variant="primary"
             disabled={pending || !selected}
             onClick={() => {
               const candidate = available.find((c) => c.id === selected);
@@ -105,13 +101,12 @@ export function ShortLinkManager({
                 await createShortLinkAction(candidate.id, candidate.url);
               });
             }}
-            className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:opacity-50"
           >
-            {pending ? "…" : "Créer"}
-          </button>
+            {pending ? "Création…" : "Créer"}
+          </Button>
         </div>
       ) : (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-400">
           {candidates.length === 0
             ? "Ajoutez d'abord un lien à votre page."
             : "Tous vos liens ont déjà un lien court."}
