@@ -56,13 +56,24 @@ export function PageRenderer({ page, preview = false }: { page: RenderablePage; 
       style={vars}
       data-sesame-root=""
       className={[
-        "flex min-h-full w-full flex-col bg-[var(--sesame-bg)] text-[var(--sesame-text)]",
+        // `relative` is load-bearing: it is the containing block for the
+        // background layer below.
+        "relative flex min-h-full w-full flex-col bg-[var(--sesame-bg)] text-[var(--sesame-text)]",
         preview ? "min-h-full" : "min-h-dvh",
       ].join(" ")}
     >
+      {/*
+        Absolute, not fixed. A fixed layer is positioned against the viewport,
+        so inside the dashboard's phone preview it escaped the frame and
+        painted the theme's gradient over the entire editor. Absolute keeps it
+        inside this renderer wherever the renderer is mounted — and on the real
+        public page it also scrolls with the content, which is what a
+        top-anchored radial gradient should do.
+      */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0"
+        data-sesame-backdrop=""
+        className="pointer-events-none absolute inset-0"
         style={{ backgroundImage: "var(--sesame-bg-image)" }}
       />
 
